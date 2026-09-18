@@ -1,0 +1,43 @@
+import { invoke } from "@tauri-apps/api/core";
+import type {
+  BulkScreenSlotInput,
+  CountdownAction,
+  ScreenSlot,
+  ScreenSlotInput,
+} from "./types";
+
+// Typed wrappers around invoke() — one per src-tauri/src/commands.rs command.
+// Errors reject with the serialized OrbitError shape (see types.ts);
+// callers should run them through describeOrbitError() for display.
+
+export function connectDevice(host: string): Promise<ScreenSlot[]> {
+  return invoke("connect_device", { host });
+}
+
+export function disconnectDevice(): Promise<void> {
+  return invoke("disconnect_device");
+}
+
+export function getScreens(): Promise<ScreenSlot[]> {
+  return invoke("get_screens");
+}
+
+export function getScreen(n: number): Promise<ScreenSlot> {
+  return invoke("get_screen", { n });
+}
+
+export function applyLayout(slots: BulkScreenSlotInput[]): Promise<ScreenSlot[]> {
+  return invoke("apply_layout", { slots });
+}
+
+export function applyScreen(n: number, slot: ScreenSlotInput): Promise<ScreenSlot> {
+  return invoke("apply_screen", { n, slot });
+}
+
+export function refreshTicker(n: number): Promise<ScreenSlot> {
+  return invoke("refresh_ticker", { n });
+}
+
+export function countdownAction(n: number, action: CountdownAction): Promise<ScreenSlot> {
+  return invoke("countdown_action", { n, action });
+}

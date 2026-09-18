@@ -1,49 +1,47 @@
 import { useState } from "react";
-import reactLogo from "./assets/react.svg";
-import { invoke } from "@tauri-apps/api/core";
+import { ConnectionSettings } from "./components/settings/ConnectionSettings";
+import { ScreenGrid } from "./components/designer/ScreenGrid";
+import { getScreens } from "./lib/tauriCommands";
+import { describeOrbitError, type ScreenSlot } from "./lib/types";
 import "./App.css";
 
 function App() {
-  const [greetMsg, setGreetMsg] = useState("");
-  const [name, setName] = useState("");
+  const [host, setHost] = useState<string | null>(null);
+  const [screens, setScreens] = useState<ScreenSlot[]>([]);
+  const [refreshError, setRefreshError] = useState<string | null>(null);
 
-  async function greet() {
-    // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-    setGreetMsg(await invoke("greet", { name }));
+  function handleConnected(newScreens: ScreenSlot[], connectedHost: string) {
+    setHost(connectedHost);
+    setScreens(newScreens);
+  }
+
+  async function handleRefresh() {
+    setRefreshError(null);
+    try {
+      setScreens(await getScreens());
+    } catch (err) {
+      setRefreshError(describeOrbitError(err));
+    }
   }
 
   return (
     <main className="container">
-      <h1>Welcome to Tauri + React</h1>
+      <h1>OrbIt Command Center</h1>
 
-      <div className="row">
-        <a href="https://vite.dev" target="_blank">
-          <img src="/vite.svg" className="logo vite" alt="Vite logo" />
-        </a>
-        <a href="https://tauri.app" target="_blank">
-          <img src="/tauri.svg" className="logo tauri" alt="Tauri logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <p>Click on the Tauri, Vite, and React logos to learn more.</p>
-
-      <form
-        className="row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          greet();
-        }}
-      >
-        <input
-          id="greet-input"
-          onChange={(e) => setName(e.currentTarget.value)}
-          placeholder="Enter a name..."
-        />
-        <button type="submit">Greet</button>
-      </form>
-      <p>{greetMsg}</p>
+      {!host ? (
+        <ConnectionSettings onConnected={handleConnected} />
+      ) : (
+        <>
+          <div className="connected-bar">
+            <span>
+              Connected to <strong>{host}</strong>
+            </span>
+            <button onClick={handleRefresh}>Refresh</button>
+          </div>
+          {refreshError && <p className="connection-settings-error">{refreshError}</p>}
+          <ScreenGrid screens={screens} />
+        </>
+      )}
     </main>
   );
 }

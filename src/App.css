@@ -1,10 +1,3 @@
-.logo.vite:hover {
-  filter: drop-shadow(0 0 2em #747bff);
-}
-
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafb);
-}
 :root {
   font-family: Inter, Avenir, Helvetica, Arial, sans-serif;
   font-size: 16px;
@@ -22,38 +15,13 @@
 }
 
 .container {
-  margin: 0;
-  padding-top: 10vh;
+  margin: 0 auto;
+  max-width: 720px;
+  padding: 4vh 2rem;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  align-items: center;
   text-align: center;
-}
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: 0.75s;
-}
-
-.logo.tauri:hover {
-  filter: drop-shadow(0 0 2em #24c8db);
-}
-
-.row {
-  display: flex;
-  justify-content: center;
-}
-
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-
-a:hover {
-  color: #535bf2;
 }
 
 h1 {
@@ -91,18 +59,87 @@ button {
   outline: none;
 }
 
-#greet-input {
-  margin-right: 5px;
+.connection-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: 360px;
+}
+
+.connection-settings label {
+  text-align: left;
+  font-size: 0.9em;
+  opacity: 0.8;
+}
+
+.connection-settings-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.connection-settings-row input {
+  flex: 1;
+}
+
+.connection-settings-error {
+  color: #d33;
+  font-size: 0.9em;
+}
+
+.connected-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 1.5rem;
+}
+
+.screen-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  justify-content: center;
+}
+
+.screen-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.screen-tile-circle {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  background-color: #0f0f0f;
+  color: #f6f6f6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.screen-tile-index {
+  font-size: 0.75em;
+  opacity: 0.6;
+}
+
+.screen-tile-control {
+  font-weight: 600;
+}
+
+.screen-tile-label {
+  font-size: 0.85em;
+  opacity: 0.7;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color: #f6f6f6;
     background-color: #2f2f2f;
-  }
-
-  a:hover {
-    color: #24c8db;
   }
 
   input,
@@ -112,5 +149,10 @@ button {
   }
   button:active {
     background-color: #0f0f0f69;
+  }
+
+  .screen-tile-circle {
+    background-color: #f6f6f6;
+    color: #0f0f0f;
   }
 }
