@@ -1,19 +1,27 @@
-import { SCREEN_COUNT, type ScreenSlot } from "../../lib/types";
+import { SCREEN_COUNT } from "../../lib/types";
+import { useLayoutDraftStore } from "../../stores/layoutDraftStore";
 import { ScreenTile } from "./ScreenTile";
 
 interface ScreenGridProps {
-  screens: ScreenSlot[];
+  selected: number | null;
+  onSelect: (index: number) => void;
 }
 
-// Renders the 5 slots read-only for now (step 3 of the build plan: prove the
-// connect -> GET /screens -> render round-trip before adding editing).
-export function ScreenGrid({ screens }: ScreenGridProps) {
-  const bySlot = new Map(screens.map((s) => [s.screen, s]));
+export function ScreenGrid({ selected, onSelect }: ScreenGridProps) {
+  const draft = useLayoutDraftStore((s) => s.draft);
+  const isDirty = useLayoutDraftStore((s) => s.isDirty);
 
   return (
     <div className="screen-grid">
       {Array.from({ length: SCREEN_COUNT }, (_, i) => (
-        <ScreenTile key={i} index={i} slot={bySlot.get(i)} />
+        <ScreenTile
+          key={i}
+          index={i}
+          slot={draft[i] ? { screen: i, updatedAt: 0, ...draft[i] } : undefined}
+          selected={selected === i}
+          dirty={isDirty(i)}
+          onSelect={onSelect}
+        />
       ))}
     </div>
   );
