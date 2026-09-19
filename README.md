@@ -21,6 +21,11 @@ firmware — a visual designer for the device's 5 screens, local named
 profiles you can flip between, and a tray-resident background service that
 pushes live CPU/GPU/RAM stats to a screen automatically.
 
+> **Note:** `OrbItWidget` is a custom firmware fork, not (yet) part of
+> upstream [info-orbs](https://github.com/brettdottech/info-orbs). It isn't
+> currently in a state to submit as a PR upstream, so for now this app only
+> works against that fork rather than stock info-orbs firmware.
+
 > **Status:** actively developed, works against real hardware, not yet
 > feature-complete — see [Roadmap](#roadmap).
 
