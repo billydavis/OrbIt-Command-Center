@@ -1,8 +1,9 @@
-use tauri::State;
+use tauri::{AppHandle, State};
 
 use crate::device::{
     BulkScreenSlotInput, CountdownAction, OrbitClient, OrbitError, ScreenSlot, ScreenSlotInput,
 };
+use crate::persistence::{profile_store, Profile, ProfileError};
 use crate::state::AppState;
 
 /// Probes the device at `host` (GET /screens) and, on success, stores the
@@ -63,6 +64,36 @@ pub async fn countdown_action(
     state: State<'_, AppState>,
 ) -> Result<ScreenSlot, OrbitError> {
     with_device(&state, |client| async move { client.countdown_action(n, action).await }).await
+}
+
+#[tauri::command]
+pub fn list_profiles(app: AppHandle) -> Result<Vec<Profile>, ProfileError> {
+    profile_store::list(&app)
+}
+
+#[tauri::command]
+pub fn save_profile(
+    app: AppHandle,
+    name: String,
+    slots: Vec<BulkScreenSlotInput>,
+) -> Result<Profile, ProfileError> {
+    profile_store::save(&app, name, slots)
+}
+
+#[tauri::command]
+pub fn delete_profile(app: AppHandle, id: String) -> Result<(), ProfileError> {
+    profile_store::delete(&app, &id)
+}
+
+#[tauri::command]
+pub async fn apply_profile(
+    app: AppHandle,
+    id: String,
+    state: State<'_, AppState>,
+) -> Result<Vec<ScreenSlot>, OrbitError> {
+    let profile = profile_store::get(&app, &id).map_err(|e| OrbitError::Other(e.to_string()))?;
+    with_device(&state, |client| async move { client.post_screens_bulk(profile.slots).await })
+        .await
 }
 
 /// Clones the connected client out of the mutex (cheap: `reqwest::Client` is

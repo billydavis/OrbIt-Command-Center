@@ -33,7 +33,7 @@ pub struct ScreenSlotInput {
 }
 
 /// One entry of the outgoing bulk POST /screens body.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct BulkScreenSlotInput {
     pub screen: u8,
     pub control: String,

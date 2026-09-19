@@ -51,7 +51,8 @@ export type OrbitError =
   | { kind: "Timeout" }
   | { kind: "DeviceRejected"; message: { status: number; message: string } }
   | { kind: "Decode"; message: string }
-  | { kind: "NotConfigured" };
+  | { kind: "NotConfigured" }
+  | { kind: "Other"; message: string };
 
 export function describeOrbitError(err: unknown): string {
   const e = err as OrbitError;
@@ -69,6 +70,36 @@ export function describeOrbitError(err: unknown): string {
       return `Unexpected response from device: ${e.message}`;
     case "NotConfigured":
       return "Not connected to a device yet.";
+    case "Other":
+      return e.message;
+    default:
+      return String(err);
+  }
+}
+
+// Mirrors src-tauri/src/persistence/profiles.rs::Profile.
+export interface Profile {
+  id: string;
+  name: string;
+  createdAt: number;
+  slots: BulkScreenSlotInput[];
+}
+
+// Mirrors src-tauri/src/persistence/profiles.rs::ProfileError.
+export type ProfileError =
+  | { kind: "Io"; message: string }
+  | { kind: "NotFound"; message: string };
+
+export function describeProfileError(err: unknown): string {
+  const e = err as ProfileError;
+  if (!e || typeof e !== "object" || !("kind" in e)) {
+    return String(err);
+  }
+  switch (e.kind) {
+    case "Io":
+      return `Profile storage error: ${e.message}`;
+    case "NotFound":
+      return `Profile '${e.message}' not found.`;
     default:
       return String(err);
   }

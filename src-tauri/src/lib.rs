@@ -1,5 +1,6 @@
 mod commands;
 mod device;
+mod persistence;
 mod state;
 
 use state::AppState;
@@ -18,6 +19,10 @@ pub fn run() {
             commands::apply_screen,
             commands::refresh_ticker,
             commands::countdown_action,
+            commands::list_profiles,
+            commands::save_profile,
+            commands::delete_profile,
+            commands::apply_profile,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

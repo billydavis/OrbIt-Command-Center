@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ConnectionSettings } from "./components/settings/ConnectionSettings";
 import { ScreenGrid } from "./components/designer/ScreenGrid";
 import { ScreenEditor } from "./components/designer/ScreenEditor";
+import { ProfileList } from "./components/profiles/ProfileList";
 import { applyLayout, getScreens } from "./lib/tauriCommands";
 import { describeOrbitError, type BulkScreenSlotInput, type ScreenSlot } from "./lib/types";
 import { useLayoutDraftStore } from "./stores/layoutDraftStore";
@@ -32,6 +33,15 @@ function App() {
     } catch (err) {
       setRefreshError(describeOrbitError(err));
     }
+  }
+
+  // Profiles can omit screens (countdown is never saved into one, see
+  // SaveProfileDialog), so apply_profile's response only covers the screens
+  // it actually touched — re-fetching the full layout here, rather than
+  // feeding that partial list straight into syncFromDevice, avoids treating
+  // an omitted screen as freshly "blank" when the device left it untouched.
+  async function handleProfileApplied() {
+    await handleRefresh();
   }
 
   async function handleApplyLayout() {
@@ -89,6 +99,8 @@ function App() {
           <ScreenGrid selected={selected} onSelect={setSelected} />
 
           {selected !== null && <ScreenEditor screen={selected} />}
+
+          <ProfileList onApplied={handleProfileApplied} />
         </>
       )}
     </main>

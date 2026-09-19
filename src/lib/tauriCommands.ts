@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   BulkScreenSlotInput,
   CountdownAction,
+  Profile,
   ScreenSlot,
   ScreenSlotInput,
 } from "./types";
@@ -40,4 +41,20 @@ export function refreshTicker(n: number): Promise<ScreenSlot> {
 
 export function countdownAction(n: number, action: CountdownAction): Promise<ScreenSlot> {
   return invoke("countdown_action", { n, action });
+}
+
+export function listProfiles(): Promise<Profile[]> {
+  return invoke("list_profiles");
+}
+
+export function saveProfile(name: string, slots: BulkScreenSlotInput[]): Promise<Profile> {
+  return invoke("save_profile", { name, slots });
+}
+
+export function deleteProfile(id: string): Promise<void> {
+  return invoke("delete_profile", { id });
+}
+
+export function applyProfile(id: string): Promise<ScreenSlot[]> {
+  return invoke("apply_profile", { id });
 }

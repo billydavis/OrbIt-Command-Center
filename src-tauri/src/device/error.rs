@@ -22,6 +22,13 @@ pub enum OrbitError {
 
     #[error("no device configured")]
     NotConfigured,
+
+    /// Local (non-device) failures that still need to surface through the
+    /// same command boundary — e.g. apply_profile referencing an id that
+    /// doesn't exist in profiles.json. Kept generic rather than growing
+    /// OrbitError into a catch-all app error type.
+    #[error("{0}")]
+    Other(String),
 }
 
 impl OrbitError {
