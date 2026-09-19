@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useProfilesStore } from "../../stores/profilesStore";
+import { useDeviceStore } from "../../stores/deviceStore";
 import { applyProfile } from "../../lib/tauriCommands";
-import { describeOrbitError, type Profile } from "../../lib/types";
+import { describeOrbitError, isConnectionLost, type Profile } from "../../lib/types";
 
 interface ProfileCardProps {
   profile: Profile;
@@ -10,6 +11,7 @@ interface ProfileCardProps {
 
 export function ProfileCard({ profile, onApplied }: ProfileCardProps) {
   const remove = useProfilesStore((s) => s.remove);
+  const markLost = useDeviceStore((s) => s.markLost);
   const [busy, setBusy] = useState<"apply" | "delete" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +22,9 @@ export function ProfileCard({ profile, onApplied }: ProfileCardProps) {
       await applyProfile(profile.id);
       onApplied();
     } catch (err) {
-      setError(describeOrbitError(err));
+      const message = describeOrbitError(err);
+      setError(message);
+      if (isConnectionLost(err)) markLost(message);
     } finally {
       setBusy(null);
     }

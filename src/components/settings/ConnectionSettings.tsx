@@ -1,33 +1,37 @@
 import { useState } from "react";
-import { connectDevice } from "../../lib/tauriCommands";
-import { describeOrbitError, type ScreenSlot } from "../../lib/types";
+import { useDeviceStore } from "../../stores/deviceStore";
+import type { ScreenSlot } from "../../lib/types";
 
 interface ConnectionSettingsProps {
-  onConnected: (screens: ScreenSlot[], host: string) => void;
+  onConnected: (screens: ScreenSlot[]) => void;
 }
 
 export function ConnectionSettings({ onConnected }: ConnectionSettingsProps) {
-  const [host, setHost] = useState("");
-  const [status, setStatus] = useState<"idle" | "connecting" | "error">("idle");
-  const [error, setError] = useState<string | null>(null);
+  const storeStatus = useDeviceStore((s) => s.status);
+  const storeError = useDeviceStore((s) => s.error);
+  const lastHost = useDeviceStore((s) => s.host);
+  const connect = useDeviceStore((s) => s.connect);
+
+  const [host, setHost] = useState(lastHost ?? "");
 
   async function handleConnect(e: React.FormEvent) {
     e.preventDefault();
     if (!host.trim()) return;
-    setStatus("connecting");
-    setError(null);
     try {
-      const screens = await connectDevice(host.trim());
-      setStatus("idle");
-      onConnected(screens, host.trim());
-    } catch (err) {
-      setStatus("error");
-      setError(describeOrbitError(err));
+      const screens = await connect(host.trim());
+      onConnected(screens);
+    } catch {
+      // error already surfaced via the store's `error` field
     }
   }
 
+  const connecting = storeStatus === "connecting";
+
   return (
     <form className="connection-settings" onSubmit={handleConnect}>
+      {storeStatus === "lost" && (
+        <p className="connection-settings-error">Lost connection to the device — reconnect below.</p>
+      )}
       <label htmlFor="device-host">Device IP or hostname</label>
       <div className="connection-settings-row">
         <input
@@ -35,13 +39,13 @@ export function ConnectionSettings({ onConnected }: ConnectionSettingsProps) {
           placeholder="e.g. 192.168.1.42"
           value={host}
           onChange={(e) => setHost(e.currentTarget.value)}
-          disabled={status === "connecting"}
+          disabled={connecting}
         />
-        <button type="submit" disabled={status === "connecting" || !host.trim()}>
-          {status === "connecting" ? "Connecting…" : "Connect"}
+        <button type="submit" disabled={connecting || !host.trim()}>
+          {connecting ? "Connecting…" : "Connect"}
         </button>
       </div>
-      {error && <p className="connection-settings-error">{error}</p>}
+      {storeError && storeStatus !== "lost" && <p className="connection-settings-error">{storeError}</p>}
     </form>
   );
 }

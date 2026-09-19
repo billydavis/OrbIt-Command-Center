@@ -77,6 +77,15 @@ export function describeOrbitError(err: unknown): string {
   }
 }
 
+// Unreachable/Timeout mean the device dropped off the network (WiFi hiccup,
+// powered off, etc.) rather than rejecting a specific request — callers use
+// this to distinguish "lost connection, go back to the connect screen" from
+// an ordinary request-level error that should just show inline.
+export function isConnectionLost(err: unknown): boolean {
+  const e = err as OrbitError;
+  return !!e && typeof e === "object" && "kind" in e && (e.kind === "Unreachable" || e.kind === "Timeout");
+}
+
 // Mirrors src-tauri/src/persistence/profiles.rs::Profile.
 export interface Profile {
   id: string;

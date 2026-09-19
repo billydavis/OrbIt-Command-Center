@@ -7,16 +7,25 @@ import { ProfileList } from "./components/profiles/ProfileList";
 import { applyLayout, getScreens } from "./lib/tauriCommands";
 import {
   describeOrbitError,
+  isConnectionLost,
   type BulkScreenSlotInput,
   type OrbitError,
   type ScreenSlot,
 } from "./lib/types";
 import { useLayoutDraftStore } from "./stores/layoutDraftStore";
+import { useDeviceStore } from "./stores/deviceStore";
 import "./App.css";
 
+const BACKGROUND_ERROR_AUTO_DISMISS_MS = 10_000;
+
 function App() {
-  const [host, setHost] = useState<string | null>(null);
+  const host = useDeviceStore((s) => s.host);
+  const connectionStatus = useDeviceStore((s) => s.status);
+  const disconnect = useDeviceStore((s) => s.disconnect);
+  const markLost = useDeviceStore((s) => s.markLost);
+
   const [selected, setSelected] = useState<number | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [applyState, setApplyState] = useState<"idle" | "applying" | "error">("idle");
   const [applyError, setApplyError] = useState<string | null>(null);
@@ -24,34 +33,54 @@ function App() {
 
   // sysmonitor/task.rs emits this when a background push fails (device
   // offline/unreachable mid-loop) — surfaced here since it happens outside
-  // any user-initiated command and wouldn't otherwise be visible.
+  // any user-initiated command and wouldn't otherwise be visible. It also
+  // drops the app back to the connect screen if the failure means the
+  // device is actually gone, not just one bad request.
   useEffect(() => {
     const unlisten = listen<OrbitError>("device-error", (event) => {
-      setBackgroundError(describeOrbitError(event.payload));
+      const message = describeOrbitError(event.payload);
+      setBackgroundError(message);
+      if (isConnectionLost(event.payload)) {
+        markLost(message);
+      }
     });
     return () => {
       unlisten.then((f) => f());
     };
-  }, []);
+  }, [markLost]);
+
+  useEffect(() => {
+    if (!backgroundError) return;
+    const timer = setTimeout(() => setBackgroundError(null), BACKGROUND_ERROR_AUTO_DISMISS_MS);
+    return () => clearTimeout(timer);
+  }, [backgroundError]);
 
   const draft = useLayoutDraftStore((s) => s.draft);
   const isDirty = useLayoutDraftStore((s) => s.isDirty);
   const syncFromDevice = useLayoutDraftStore((s) => s.syncFromDevice);
   const patchLive = useLayoutDraftStore((s) => s.patchLive);
 
-  function handleConnected(screens: ScreenSlot[], connectedHost: string) {
-    setHost(connectedHost);
+  function handleConnected(screens: ScreenSlot[]) {
     syncFromDevice(screens);
     setSelected(0);
   }
 
   async function handleRefresh() {
+    setRefreshing(true);
     setRefreshError(null);
     try {
       syncFromDevice(await getScreens());
     } catch (err) {
       setRefreshError(describeOrbitError(err));
+      if (isConnectionLost(err)) markLost(describeOrbitError(err));
+    } finally {
+      setRefreshing(false);
     }
+  }
+
+  async function handleDisconnect() {
+    await disconnect();
+    setSelected(null);
   }
 
   // Profiles can omit screens (countdown is never saved into one, see
@@ -82,10 +111,14 @@ function App() {
     } catch (err) {
       setApplyState("error");
       setApplyError(describeOrbitError(err));
+      if (isConnectionLost(err)) markLost(describeOrbitError(err));
     }
   }
 
-  const dirtyCount = host ? [0, 1, 2, 3, 4].filter((i) => isDirty(i) && draft[i]?.control !== "countdown").length : 0;
+  const connected = connectionStatus === "connected";
+  const dirtyCount = connected
+    ? [0, 1, 2, 3, 4].filter((i) => isDirty(i) && draft[i]?.control !== "countdown").length
+    : 0;
 
   return (
     <main className="container">
@@ -100,7 +133,7 @@ function App() {
         </p>
       )}
 
-      {!host ? (
+      {!connected ? (
         <ConnectionSettings onConnected={handleConnected} />
       ) : (
         <>
@@ -109,8 +142,11 @@ function App() {
               Connected to <strong>{host}</strong>
             </span>
             <div className="button-row">
-              <button type="button" onClick={handleRefresh}>
-                Refresh
+              <button type="button" onClick={handleDisconnect}>
+                Disconnect
+              </button>
+              <button type="button" disabled={refreshing} onClick={handleRefresh}>
+                {refreshing ? "Refreshing…" : "Refresh"}
               </button>
               <button
                 type="button"
