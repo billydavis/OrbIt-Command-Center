@@ -1,10 +1,16 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
 import { ConnectionSettings } from "./components/settings/ConnectionSettings";
 import { ScreenGrid } from "./components/designer/ScreenGrid";
 import { ScreenEditor } from "./components/designer/ScreenEditor";
 import { ProfileList } from "./components/profiles/ProfileList";
 import { applyLayout, getScreens } from "./lib/tauriCommands";
-import { describeOrbitError, type BulkScreenSlotInput, type ScreenSlot } from "./lib/types";
+import {
+  describeOrbitError,
+  type BulkScreenSlotInput,
+  type OrbitError,
+  type ScreenSlot,
+} from "./lib/types";
 import { useLayoutDraftStore } from "./stores/layoutDraftStore";
 import "./App.css";
 
@@ -14,6 +20,19 @@ function App() {
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [applyState, setApplyState] = useState<"idle" | "applying" | "error">("idle");
   const [applyError, setApplyError] = useState<string | null>(null);
+  const [backgroundError, setBackgroundError] = useState<string | null>(null);
+
+  // sysmonitor/task.rs emits this when a background push fails (device
+  // offline/unreachable mid-loop) — surfaced here since it happens outside
+  // any user-initiated command and wouldn't otherwise be visible.
+  useEffect(() => {
+    const unlisten = listen<OrbitError>("device-error", (event) => {
+      setBackgroundError(describeOrbitError(event.payload));
+    });
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, []);
 
   const draft = useLayoutDraftStore((s) => s.draft);
   const isDirty = useLayoutDraftStore((s) => s.isDirty);
@@ -71,6 +90,15 @@ function App() {
   return (
     <main className="container">
       <h1>OrbIt Command Center</h1>
+
+      {backgroundError && (
+        <p className="connection-settings-error background-error">
+          Background push: {backgroundError}
+          <button type="button" onClick={() => setBackgroundError(null)}>
+            Dismiss
+          </button>
+        </p>
+      )}
 
       {!host ? (
         <ConnectionSettings onConnected={handleConnected} />

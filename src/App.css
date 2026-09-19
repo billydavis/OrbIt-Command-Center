@@ -87,6 +87,16 @@ button {
   font-size: 0.9em;
 }
 
+.background-error {
+  width: 100%;
+  max-width: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
 .connected-bar {
   display: flex;
   align-items: center;

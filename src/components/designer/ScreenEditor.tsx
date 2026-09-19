@@ -62,6 +62,7 @@ export function ScreenEditor({ screen }: ScreenEditorProps) {
       {Form && (
         <Form
           key={control}
+          screen={screen}
           initialParams={draft.params}
           onChange={(params) => setDraftSlot(screen, { control, params })}
         />

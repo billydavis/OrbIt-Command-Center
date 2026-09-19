@@ -17,17 +17,21 @@ pub async fn connect_device(
     let client = OrbitClient::new(&host);
     let screens = client.get_screens().await?;
     *state.device.lock().expect("device state mutex poisoned") = Some(client);
+    state.set_layout(screens.clone());
     Ok(screens)
 }
 
 #[tauri::command]
 pub fn disconnect_device(state: State<'_, AppState>) {
     *state.device.lock().expect("device state mutex poisoned") = None;
+    *state.last_layout.lock().expect("layout mutex poisoned") = None;
 }
 
 #[tauri::command]
 pub async fn get_screens(state: State<'_, AppState>) -> Result<Vec<ScreenSlot>, OrbitError> {
-    with_device(&state, |client| async move { client.get_screens().await }).await
+    let screens = with_device(&state, |client| async move { client.get_screens().await }).await?;
+    state.set_layout(screens.clone());
+    Ok(screens)
 }
 
 #[tauri::command]
@@ -40,7 +44,12 @@ pub async fn apply_layout(
     slots: Vec<BulkScreenSlotInput>,
     state: State<'_, AppState>,
 ) -> Result<Vec<ScreenSlot>, OrbitError> {
-    with_device(&state, |client| async move { client.post_screens_bulk(slots).await }).await
+    let applied =
+        with_device(&state, |client| async move { client.post_screens_bulk(slots).await }).await?;
+    for slot in &applied {
+        state.patch_layout_slot(slot.clone());
+    }
+    Ok(applied)
 }
 
 #[tauri::command]
@@ -49,12 +58,18 @@ pub async fn apply_screen(
     slot: ScreenSlotInput,
     state: State<'_, AppState>,
 ) -> Result<ScreenSlot, OrbitError> {
-    with_device(&state, |client| async move { client.post_screen(n, slot).await }).await
+    let applied =
+        with_device(&state, |client| async move { client.post_screen(n, slot).await }).await?;
+    state.patch_layout_slot(applied.clone());
+    Ok(applied)
 }
 
 #[tauri::command]
 pub async fn refresh_ticker(n: u8, state: State<'_, AppState>) -> Result<ScreenSlot, OrbitError> {
-    with_device(&state, |client| async move { client.refresh_ticker(n).await }).await
+    let updated =
+        with_device(&state, |client| async move { client.refresh_ticker(n).await }).await?;
+    state.patch_layout_slot(updated.clone());
+    Ok(updated)
 }
 
 #[tauri::command]
@@ -63,7 +78,10 @@ pub async fn countdown_action(
     action: CountdownAction,
     state: State<'_, AppState>,
 ) -> Result<ScreenSlot, OrbitError> {
-    with_device(&state, |client| async move { client.countdown_action(n, action).await }).await
+    let updated = with_device(&state, |client| async move { client.countdown_action(n, action).await })
+        .await?;
+    state.patch_layout_slot(updated.clone());
+    Ok(updated)
 }
 
 #[tauri::command]
@@ -92,8 +110,17 @@ pub async fn apply_profile(
     state: State<'_, AppState>,
 ) -> Result<Vec<ScreenSlot>, OrbitError> {
     let profile = profile_store::get(&app, &id).map_err(|e| OrbitError::Other(e.to_string()))?;
-    with_device(&state, |client| async move { client.post_screens_bulk(profile.slots).await })
-        .await
+    let applied = with_device(&state, |client| async move { client.post_screens_bulk(profile.slots).await })
+        .await?;
+    for slot in &applied {
+        state.patch_layout_slot(slot.clone());
+    }
+    Ok(applied)
+}
+
+#[tauri::command]
+pub async fn gpu_monitoring_available() -> bool {
+    crate::sysmonitor::gpu::is_available().await
 }
 
 /// Clones the connected client out of the mutex (cheap: `reqwest::Client` is

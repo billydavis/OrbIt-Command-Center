@@ -58,3 +58,7 @@ export function deleteProfile(id: string): Promise<void> {
 export function applyProfile(id: string): Promise<ScreenSlot[]> {
   return invoke("apply_profile", { id });
 }
+
+export function gpuMonitoringAvailable(): Promise<boolean> {
+  return invoke("gpu_monitoring_available");
+}
