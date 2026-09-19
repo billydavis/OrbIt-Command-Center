@@ -34,14 +34,34 @@ async fn run_tick(app: &AppHandle, collector: &mut Collector) {
     // Only reads AppState's cached layout (kept in sync by commands.rs on
     // every successful device call) — deliberately never issues its own
     // GET /screens, so an idle app with no sysMonitor slot generates zero
-    // device traffic from this loop.
-    let sysmonitor_screens: Vec<u8> = {
+    // device traffic from this loop. Each screen's current `center` choice
+    // (docs/orbit-api.md: params.center picks what the middle of the screen
+    // shows) is captured here too — POST replaces a slot's entire params,
+    // so if this tick's push didn't re-send it, the user's choice would get
+    // silently clobbered back to "auto" every ~5s.
+    //
+    // An empty string is treated the same as "not set" (mapped to None, so
+    // it's simply omitted from the next push) rather than forwarded as-is:
+    // the device will happily echo back a stale/legacy `"center": ""` via
+    // GET, but rejects that same value with a 400 if POSTed — "" isn't one
+    // of the documented center values (cpu/cpuTemp/gpu/gpuTemp/ram/ssdTemp/
+    // none), so blindly round-tripping whatever was last seen breaks the
+    // very first tick after connecting to a device with that legacy state.
+    let sysmonitor_screens: Vec<(u8, Option<String>)> = {
         let layout = state.last_layout.lock().expect("layout mutex poisoned");
         match layout.as_ref() {
             Some(screens) => screens
                 .iter()
                 .filter(|s| s.control == "sysMonitor")
-                .map(|s| s.screen)
+                .map(|s| {
+                    let center = s
+                        .params
+                        .get("center")
+                        .and_then(|v| v.as_str())
+                        .filter(|s| !s.is_empty())
+                        .map(|s| s.to_string());
+                    (s.screen, center)
+                })
                 .collect(),
             None => return,
         }
@@ -50,14 +70,18 @@ async fn run_tick(app: &AppHandle, collector: &mut Collector) {
         return;
     }
 
-    let params = build_params(collector).await;
+    let base_params = build_base_params(collector).await;
 
-    for screen in sysmonitor_screens {
-        push_to_screen(app, &state, &client, screen, params.clone()).await;
+    for (screen, center) in sysmonitor_screens {
+        let mut params = base_params.clone();
+        if let Some(center_value) = center {
+            params["center"] = serde_json::Value::String(center_value);
+        }
+        push_to_screen(app, &state, &client, screen, params).await;
     }
 }
 
-async fn build_params(collector: &mut Collector) -> serde_json::Value {
+async fn build_base_params(collector: &mut Collector) -> serde_json::Value {
     let cpu_ram = collector.sample();
     let mut params = serde_json::json!({
         "cpu": cpu_ram.cpu_percent.round(),
@@ -94,4 +118,3 @@ async fn push_to_screen(
         }
     }
 }
-

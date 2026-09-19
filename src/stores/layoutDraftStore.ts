@@ -1,6 +1,23 @@
 import { create } from "zustand";
 import { SCREEN_COUNT, type ScreenSlot, type ScreenSlotInput } from "../lib/types";
 
+// A device can echo back `sysMonitor.params.center: ""` via GET (e.g. a
+// legacy/default value from before this app ever set one explicitly), but
+// "" isn't one of the documented center values and the device rejects it
+// with a 400 if POSTed back verbatim. Every device response is sanitized
+// through here on the way into `live`, so `live` and freshly-derived
+// `draft` entries always agree — the alternative (stripping it only where
+// it's about to be re-sent) would desync live vs. draft and reintroduce
+// the false-"dirty" bug this same live/draft split was built to avoid.
+function sanitizeSlot(slot: ScreenSlot): ScreenSlot {
+  if (slot.control !== "sysMonitor" || slot.params.center !== "") {
+    return slot;
+  }
+  const params = { ...slot.params };
+  delete params.center;
+  return { ...slot, params };
+}
+
 function toInput(slot: ScreenSlot): ScreenSlotInput {
   return { control: slot.control, params: slot.params };
 }
@@ -67,8 +84,9 @@ export const useLayoutDraftStore = create<LayoutDraftState>((set, get) => ({
     for (let i = 0; i < SCREEN_COUNT; i++) {
       const found = screens.find((s) => s.screen === i);
       if (found) {
-        live[i] = found;
-        draft[i] = toInput(found);
+        const clean = sanitizeSlot(found);
+        live[i] = clean;
+        draft[i] = toInput(clean);
       } else {
         // Per the spec, an unconfigured screen reads back as control:
         // "blank" — GET /screens should always return all 5, but fall back
@@ -91,7 +109,8 @@ export const useLayoutDraftStore = create<LayoutDraftState>((set, get) => ({
     set((state) => ({ draft: { ...state.draft, [screen]: toInput(live) } }));
   },
 
-  patchLive: (slot) => {
+  patchLive: (rawSlot) => {
+    const slot = sanitizeSlot(rawSlot);
     set((state) => ({
       live: { ...state.live, [slot.screen]: slot },
       draft: { ...state.draft, [slot.screen]: toInput(slot) },
