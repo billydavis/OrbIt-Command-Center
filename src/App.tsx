@@ -1,9 +1,12 @@
 import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { ConnectionSettings } from "./components/settings/ConnectionSettings";
+import { ConnectionControl } from "./components/settings/ConnectionControl";
 import { ScreenGrid } from "./components/designer/ScreenGrid";
 import { ScreenEditor } from "./components/designer/ScreenEditor";
-import { ProfileList } from "./components/profiles/ProfileList";
+import { ProfilesDrawer } from "./components/profiles/ProfilesDrawer";
+import { ThemeControl } from "./components/theme/ThemeControl";
+import { useApplyTheme } from "./hooks/useApplyTheme";
 import { applyLayout, getScreens } from "./lib/tauriCommands";
 import {
   describeOrbitError,
@@ -20,12 +23,15 @@ const BACKGROUND_ERROR_AUTO_DISMISS_MS = 10_000;
 const APPLY_SUCCESS_AUTO_DISMISS_MS = 3_000;
 
 function App() {
+  useApplyTheme();
+
   const host = useDeviceStore((s) => s.host);
   const connectionStatus = useDeviceStore((s) => s.status);
   const disconnect = useDeviceStore((s) => s.disconnect);
   const markLost = useDeviceStore((s) => s.markLost);
 
   const [selected, setSelected] = useState<number | null>(null);
+  const [profilesOpen, setProfilesOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [applyState, setApplyState] = useState<"idle" | "applying" | "error">("idle");
@@ -142,53 +148,65 @@ function App() {
     : 0;
 
   return (
-    <main className="container">
-      <h1>OrbIt Command Center</h1>
+    <main className="app-shell">
+      <header className="app-header">
+        <h1>OrbIt Command Center</h1>
+        <div className="app-header-actions">
+          {connected && host && (
+            <ConnectionControl
+              host={host}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              onDisconnect={handleDisconnect}
+            />
+          )}
+          <ThemeControl />
+          {connected && (
+            <button type="button" className="profiles-open-button" onClick={() => setProfilesOpen(true)}>
+              Profiles
+            </button>
+          )}
+        </div>
+      </header>
 
-      {backgroundError && (
-        <p className="connection-settings-error background-error">
-          Background push: {backgroundError}
-          <button type="button" onClick={() => setBackgroundError(null)}>
-            Dismiss
-          </button>
-        </p>
-      )}
+      <div className={`app-body${connected ? "" : " app-body-centered"}`}>
+        {backgroundError && (
+          <p className="connection-settings-error background-error">
+            Background push: {backgroundError}
+            <button type="button" onClick={() => setBackgroundError(null)}>
+              Dismiss
+            </button>
+          </p>
+        )}
 
-      {applySuccessMessage && (
-        <p className="apply-success-banner background-error">
-          ✓ {applySuccessMessage}
-          <button type="button" onClick={() => setApplySuccessMessage(null)}>
-            Dismiss
-          </button>
-        </p>
-      )}
+        {applySuccessMessage && (
+          <p className="apply-success-banner background-error">
+            ✓ {applySuccessMessage}
+            <button type="button" onClick={() => setApplySuccessMessage(null)}>
+              Dismiss
+            </button>
+          </p>
+        )}
 
-      {!connected ? (
-        <ConnectionSettings onConnected={handleConnected} />
-      ) : (
-        <>
-          <div className="connected-bar">
-            <span className="connected-status">
-              <span className="connected-status-dot" aria-hidden="true" />
-              Connected to <strong>{host}</strong>
-            </span>
-            <div className="button-row">
-              <button type="button" onClick={handleDisconnect}>
-                Disconnect
-              </button>
-              <button type="button" disabled={refreshing} onClick={handleRefresh}>
-                {refreshing ? "Refreshing…" : "Refresh"}
-              </button>
-            </div>
-          </div>
-          {refreshError && <p className="connection-settings-error">{refreshError}</p>}
+        {!connected ? (
+          <ConnectionSettings onConnected={handleConnected} />
+        ) : (
+          <>
+            {refreshError && <p className="connection-settings-error">{refreshError}</p>}
 
-          <ScreenGrid selected={selected} onSelect={setSelected} />
+            <ScreenGrid selected={selected} onSelect={setSelected} />
 
-          {selected !== null && <ScreenEditor screen={selected} />}
+            {selected !== null && <ScreenEditor screen={selected} />}
+          </>
+        )}
+      </div>
 
-          <ProfileList onApplied={handleProfileApplied} />
-        </>
+      {connected && (
+        <ProfilesDrawer
+          open={profilesOpen}
+          onClose={() => setProfilesOpen(false)}
+          onApplied={handleProfileApplied}
+        />
       )}
 
       {connected && dirtyCount > 0 && (

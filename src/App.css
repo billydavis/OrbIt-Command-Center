@@ -53,25 +53,64 @@
   -webkit-text-size-adjust: 100%;
 }
 
-.container {
+.app-shell {
   margin: 0 auto;
-  max-width: 720px;
-  /* Extra bottom padding reserves room for .apply-bar so it never covers
-     the tail of the screen editor or profiles section when it's showing. */
-  padding: 4vh 2rem 6rem;
+  max-width: 1400px;
+  width: 100%;
+  min-height: 100vh;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
+}
+
+.app-header {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1.25rem 2rem;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.app-header-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* Everything below the header — the connect form when disconnected, the
+   screen grid/editor when connected. Extra bottom padding reserves room
+   for .apply-bar so it never covers the tail of the screen editor. */
+.app-body {
+  flex: 1;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 2rem 2rem 6rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 1.5rem;
+}
+
+/* The connect form isn't an instrument-panel surface, just a small
+   centered form — same treatment the whole shell used before the app-body
+   split, kept only for the disconnected state. */
+.app-body-centered {
+  flex: 1;
+  align-items: center;
+  justify-content: center;
   text-align: center;
 }
 
 h1 {
-  text-align: center;
   font-size: var(--text-xl);
   font-weight: var(--weight-bold);
   line-height: 1.15;
   letter-spacing: -0.01em;
-  margin: 0 0 1.5rem 0;
+  margin: 0;
 }
 
 .mono-num {
@@ -187,26 +226,57 @@ button.destructive:focus-visible {
   font-size: var(--text-sm);
 }
 
-.connected-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  margin-bottom: 1.5rem;
-}
-
-.connected-status {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
 .connected-status-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
   background-color: var(--color-live);
   flex-shrink: 0;
+}
+
+.connection-control {
+  position: relative;
+}
+
+/* Looks like plain status text at rest — a hover/focus background is the
+   only hint it opens Refresh/Disconnect, so the header keeps the mockup's
+   uncluttered look until you actually mean to act on the connection. */
+.connection-control-trigger {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid transparent;
+  background: none;
+  box-shadow: none;
+  padding: 0.4em 0.6em;
+}
+
+.connection-control-trigger:hover,
+.connection-control-trigger:focus-visible {
+  background-color: var(--color-surface-tint);
+  border-color: transparent;
+}
+
+.connection-control-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.5rem);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  min-width: 160px;
+  padding: 0.6rem;
+  border-radius: 8px;
+  text-align: left;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  box-shadow: 0 4px 16px var(--color-shadow);
+}
+
+.connection-control-panel button {
+  width: 100%;
+  text-align: left;
 }
 
 .button-row {
@@ -267,9 +337,15 @@ button.destructive:focus-visible {
 
 .screen-grid {
   display: flex;
-  flex-wrap: wrap;
+  /* Five tiles never wrap onto a second row — a stacked grid reads as a
+     different device layout, not a narrower window — so the row gets a
+     floor width and scrolls horizontally instead of stacking. */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  max-width: 100%;
+  min-width: calc(110px * 5 + 1.5rem * 4);
   gap: 1.5rem;
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .screen-tile {
@@ -287,11 +363,11 @@ button.destructive:focus-visible {
 .screen-tile-circle {
   width: 110px;
   height: 110px;
+  flex-shrink: 0;
   border-radius: 50%;
   background-color: var(--color-tile-bg);
   color: var(--color-tile-text);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 6px var(--color-shadow);
@@ -301,6 +377,13 @@ button.destructive:focus-visible {
 
 .screen-tile-selected .screen-tile-circle {
   border-color: var(--color-signal);
+}
+
+.screen-tile-control {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  text-align: center;
+  padding: 0 0.4rem;
 }
 
 .screen-tile-dirty-dot {
@@ -313,31 +396,9 @@ button.destructive:focus-visible {
   background-color: var(--color-pending);
 }
 
-.screen-tile-index {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  font-size: var(--text-xs);
-  letter-spacing: 0.04em;
-  opacity: 0.6;
-}
-
-.screen-tile-control {
-  font-size: var(--text-sm);
-  font-weight: var(--weight-semibold);
-}
-
-.screen-tile-label {
-  font-size: var(--text-xs);
-  font-weight: var(--weight-medium);
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-  opacity: 0.7;
-}
-
 .screen-editor {
   width: 100%;
-  max-width: 420px;
-  margin-top: 2rem;
+  max-width: 640px;
   text-align: left;
   border-top: 1px solid var(--color-divider);
   padding-top: 1.5rem;
@@ -444,21 +505,80 @@ button.destructive:focus-visible {
   margin-top: 0.5rem;
 }
 
-.profiles-section {
-  width: 100%;
-  max-width: 420px;
-  margin-top: 2rem;
-  text-align: left;
-  border-top: 1px solid var(--color-divider);
-  padding-top: 1.5rem;
+.profiles-open-button {
+  border-color: var(--color-signal);
+  color: var(--color-signal);
 }
 
-.profiles-section h2 {
+/* Dims and blocks interaction with the screen grid/editor behind the
+   drawer without hiding it — the point of a drawer over a mode switch is
+   that the live layout stays visible while profiles are open. */
+.profiles-drawer-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background-color: oklch(5% 0.01 var(--hue-neutral) / 0%);
+  pointer-events: none;
+  transition: background-color 0.2s ease-out;
+}
+
+.profiles-drawer-scrim-open {
+  background-color: oklch(5% 0.01 var(--hue-neutral) / 40%);
+  pointer-events: auto;
+}
+
+.profiles-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 21;
+  width: min(360px, 100vw);
+  box-sizing: border-box;
+  padding: 1.5rem;
+  overflow-y: auto;
+  text-align: left;
+  background-color: var(--color-surface);
+  border-left: 1px solid var(--color-divider);
+  box-shadow: -6px 0 18px var(--color-shadow);
+  transform: translateX(100%);
+  transition: transform 0.2s ease-out;
+}
+
+.profiles-drawer-open {
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .profiles-drawer-scrim,
+  .profiles-drawer {
+    transition: none;
+  }
+}
+
+.profiles-drawer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.profiles-drawer-header h2 {
   font-size: var(--text-md);
   font-weight: var(--weight-semibold);
   line-height: 1.25;
-  margin: 0 0 0.75rem 0;
+  margin: 0;
   text-align: left;
+}
+
+.profiles-drawer-close {
+  padding: 0.4em 0.7em;
+  line-height: 1;
+}
+
+.profiles-section {
+  width: 100%;
 }
 
 .profiles-section-hint {
@@ -514,8 +634,16 @@ button.destructive:focus-visible {
   gap: 0.6rem;
 }
 
+/* Dark tokens apply either because the OS prefers dark and the user hasn't
+   explicitly pinned "Light" (the guarded media query), or because the user
+   explicitly picked "Dark" in the theme control regardless of OS (the
+   attribute rule below) — ThemeControl.tsx + useApplyTheme.ts set
+   [data-theme] and leave it unset for "System". --color-signal/-active are
+   set here as a same-paint-frame fallback only; useApplyTheme immediately
+   overrides them with the chosen accent at the right lightness for the
+   effective mode. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --color-text: oklch(93% 0.004 var(--hue-neutral));
     --color-bg: oklch(23% 0.008 var(--hue-neutral));
     --color-surface: oklch(28% 0.01 var(--hue-neutral));
@@ -530,7 +658,167 @@ button.destructive:focus-visible {
     --color-alert: oklch(70% 0.17 25);
   }
 
-  button:active {
+  :root:not([data-theme="light"]) button:active {
     background-color: var(--color-surface-tint);
   }
+}
+
+:root[data-theme="dark"] {
+  --color-text: oklch(93% 0.004 var(--hue-neutral));
+  --color-bg: oklch(23% 0.008 var(--hue-neutral));
+  --color-surface: oklch(28% 0.01 var(--hue-neutral));
+  --color-surface-tint: oklch(85% 0.006 var(--hue-neutral) / 10%);
+  --color-divider: oklch(85% 0.006 var(--hue-neutral) / 16%);
+  --color-shadow: oklch(5% 0.01 var(--hue-neutral) / 45%);
+
+  --color-signal: oklch(72% 0.11 205);
+  --color-signal-active: oklch(80% 0.1 205);
+  --color-live: oklch(72% 0.13 148);
+  --color-pending: oklch(76% 0.15 70);
+  --color-alert: oklch(70% 0.17 25);
+}
+
+:root[data-theme="dark"] button:active {
+  background-color: var(--color-surface-tint);
+}
+
+.theme-control {
+  position: relative;
+}
+
+.theme-control-trigger {
+  font-size: var(--text-sm);
+  padding: 0.5em 1em;
+}
+
+.theme-control-panel {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  width: 220px;
+  padding: 1rem;
+  border-radius: 8px;
+  text-align: left;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  box-shadow: 0 4px 16px var(--color-shadow);
+}
+
+.theme-control-heading h2 {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: 1.25;
+  margin: 0 0 0.3rem 0;
+}
+
+.theme-control-heading .field-hint {
+  font-size: var(--text-xs);
+}
+
+.theme-control-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.theme-control-section-label {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.theme-control-group {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.theme-mode-button {
+  flex: 1;
+  font-size: var(--text-sm);
+  padding: 0.4em 0.6em;
+}
+
+.theme-mode-button-active {
+  border-color: var(--color-signal);
+  background-color: var(--color-surface-tint);
+  color: var(--color-signal);
+}
+
+.theme-accent-group {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.theme-accent-swatch {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  box-shadow: none;
+}
+
+.theme-accent-swatch-active {
+  border-color: var(--color-text);
+}
+
+.theme-preview {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding-top: 0.9rem;
+  border-top: 1px solid var(--color-divider);
+}
+
+.theme-preview-tile {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background-color: var(--color-tile-bg);
+  color: var(--color-tile-text);
+  border: 2px solid var(--color-signal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.theme-preview-tile svg {
+  width: 20px;
+  height: 20px;
+}
+
+.theme-preview-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.theme-preview-status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--text-xs);
+  opacity: 0.8;
+}
+
+.theme-preview-button {
+  align-self: flex-start;
+  font-size: var(--text-sm);
+  padding: 0.4em 0.9em;
+  border: none;
+  background-color: var(--color-signal);
+  color: var(--color-bg);
+}
+
+.theme-preview-button:hover,
+.theme-preview-button:focus-visible {
+  border-color: transparent;
+  opacity: 0.9;
 }
