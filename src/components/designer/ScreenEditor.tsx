@@ -15,6 +15,8 @@ export function ScreenEditor({ screen }: ScreenEditorProps) {
   const draft = useLayoutDraftStore((s) => s.draft[screen]);
   const live = useLayoutDraftStore((s) => s.live[screen]);
   const setDraftSlot = useLayoutDraftStore((s) => s.setDraftSlot);
+  const resetDraftSlot = useLayoutDraftStore((s) => s.resetDraftSlot);
+  const isDirty = useLayoutDraftStore((s) => s.isDirty(screen));
   const patchLive = useLayoutDraftStore((s) => s.patchLive);
   const markLost = useDeviceStore((s) => s.markLost);
   const [refreshing, setRefreshing] = useState(false);
@@ -65,9 +67,16 @@ export function ScreenEditor({ screen }: ScreenEditorProps) {
 
   return (
     <div className="screen-editor">
-      <h3>
-        Screen <span className="mono-num">{screen}</span>
-      </h3>
+      <div className="screen-editor-header">
+        <h3>
+          Screen <span className="mono-num">{screen}</span>
+        </h3>
+        {isDirty && (
+          <button type="button" className="screen-editor-discard" onClick={() => resetDraftSlot(screen)}>
+            Discard changes
+          </button>
+        )}
+      </div>
       <ControlPicker
         value={control}
         onChange={(next) => setDraftSlot(screen, { control: next, params: {} })}

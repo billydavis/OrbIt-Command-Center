@@ -348,7 +348,20 @@ button.destructive:focus-visible {
   font-weight: var(--weight-semibold);
   line-height: 1.2;
   letter-spacing: -0.005em;
-  margin: 0 0 1rem 0;
+  margin: 0;
+}
+
+.screen-editor-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.screen-editor-discard {
+  font-size: var(--text-sm);
+  padding: 0.35em 0.8em;
 }
 
 .control-form {
