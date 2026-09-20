@@ -1,0 +1,467 @@
+{
+  "info": {
+    "_postman_id": "6f2f9f2a-6f0f-4b1a-9b8a-0c1e2f3a4b5c",
+    "name": "OrbIt API",
+    "description": "REST control surface for OrbItWidget on an info-orbs device — assigns a control (time, weather, ticker, custom, analogClock, gauge, sysMonitor, asteroids, countdown, or blank) plus its params to each of the device's 5 physical screens (index 0-4).\n\nFull spec: docs/orbit-api.md in the OrbIt-Command-Center repo.\n\nSet the `device_ip` collection variable to your device's IP or hostname (no `http://`, no trailing slash) before sending anything — every request in this collection uses it. There's no auth on this API (LAN-only, by design), so nothing else to configure.\n\nMost single-screen \"Set ...\" requests target screen 0 by default via a `screen` path variable on that request — override it per-request (Params tab → Path Variables) rather than editing the URL.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "device_ip",
+      "value": "192.168.1.42",
+      "type": "string",
+      "description": "The info-orbs device's IP or hostname, no scheme/port (e.g. 192.168.1.42)."
+    }
+  ],
+  "item": [
+    {
+      "name": "Screens",
+      "description": "Read the device's current 5-screen layout, or bulk-replace it.",
+      "item": [
+        {
+          "name": "Get All Screens",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens"]
+            },
+            "description": "Returns all 5 current slot configs as an array, index-aligned with screen number."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Screen by Index",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens/:screen",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens", ":screen"],
+              "variable": [
+                {
+                  "key": "screen",
+                  "value": "0",
+                  "description": "Screen index, 0-4. 404 if out of range."
+                }
+              ]
+            },
+            "description": "Returns one slot config, same shape as one entry of GET /screens."
+          },
+          "response": []
+        },
+        {
+          "name": "Bulk Update Screens",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"screens\": [\n    { \"screen\": 3, \"control\": \"weather\", \"params\": { \"element\": \"temperature\" } },\n    { \"screen\": 4, \"control\": \"ticker\", \"params\": { \"symbol\": \"ETH/USD\" } }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens"]
+            },
+            "description": "Body: an array of up to 5 slot configs (bulk replace). Only screens present in the array are changed — omitted screens keep their current config. Send \"control\": \"blank\" explicitly to clear a screen; omitting it is not the same as blanking it."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Set Screen Control",
+      "description": "POST /screens/{n} — replaces one screen's entire slot config (not a merge). Each request below targets screen 0 by default via the `screen` path variable; override it per-request.",
+      "item": [
+        {
+          "name": "Set Time",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"control\": \"time\",\n  \"params\": { \"showDate\": true, \"showDay\": true, \"format24Hour\": false }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens/:screen",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens", ":screen"],
+              "variable": [{ "key": "screen", "value": "0" }]
+            },
+            "description": "params.showDate / params.showDay (default false) add the date / day-of-week. params.format24Hour (default false) picks 24-hour vs 12-hour display, independent per slot."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Analog Clock",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"control\": \"analogClock\",\n  \"params\": {\n    \"background\": \"black\",\n    \"tickColor\": \"white\",\n    \"hourColor\": \"white\",\n    \"minuteColor\": \"white\",\n    \"secondColor\": \"red\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens/:screen",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens", ":screen"],
+              "variable": [{ "key": "screen", "value": "0" }]
+            },
+            "description": "All params are optional color names (parsed via Utils::stringToColor()). Defaults: background=black, tickColor/hourColor/minuteColor=white, secondColor=red. Note: GET reports colors back as raw RGB565 ints, not names."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Gauge",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"control\": \"gauge\",\n  \"params\": {\n    \"label\": \"CPU\",\n    \"value\": 42,\n    \"min\": 0,\n    \"max\": 100,\n    \"color\": \"cyan\",\n    \"trackColor\": \"darkgrey\",\n    \"style\": \"ring\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens/:screen",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens", ":screen"],
+              "variable": [{ "key": "screen", "value": "0" }]
+            },
+            "description": "All params optional. value/min/max default 0/0/100. color/trackColor default cyan/darkgrey. style is one of \"ring\" (default, full 360°), \"speedometer\" (270° sweep), or \"instrument\" (300° sweep with tick marks)."
+          },
+          "response": []
+        },
+        {
+          "name": "Set System Monitor",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"control\": \"sysMonitor\",\n  \"params\": {\n    \"cpu\": 42,\n    \"cpuTemp\": 61,\n    \"gpu\": 78,\n    \"gpuTemp\": 68,\n    \"ram\": 55,\n    \"ramTotal\": 17.4,\n    \"ssdTemp\": 38,\n    \"center\": \"gpuTemp\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens/:screen",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens", ":screen"],
+              "variable": [{ "key": "screen", "value": "0" }]
+            },
+            "description": "All params optional, default 0. cpu/gpu/ram are percent (0-100); cpuTemp/gpuTemp/ssdTemp are °C; ramTotal is GB (0 hides it). params.center picks the middle readout: one of \"cpu\", \"cpuTemp\", \"gpu\", \"gpuTemp\", \"ram\", \"ssdTemp\", or \"none\" to leave it blank; omit it to auto-pick the highest of cpu/gpu/ram. There's no OS-metrics collection on the device itself — a client (e.g. OrbIt Command Center's background loop) is expected to push these values on some interval."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Weather",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"control\": \"weather\",\n  \"params\": { \"element\": \"icon\" }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens/:screen",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens", ":screen"],
+              "variable": [{ "key": "screen", "value": "0" }]
+            },
+            "description": "params.element picks which piece to show, e.g. \"icon\", \"temperature\", \"condition\"."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Ticker",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"control\": \"ticker\",\n  \"params\": { \"symbol\": \"BTC/USD\", \"pollIntervalSeconds\": 300 }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens/:screen",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens", ":screen"],
+              "variable": [{ "key": "screen", "value": "0" }]
+            },
+            "description": "params.symbol — any symbol twelvedata/StockWidget accepts, including crypto/forex (e.g. BTC/USD). params.pollIntervalSeconds (default 900) is silently clamped to a 300s floor to stay within twelvedata's free-tier budget."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Custom (Text)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"control\": \"custom\",\n  \"params\": { \"data\": \"Hi\" }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens/:screen",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens", ":screen"],
+              "variable": [{ "key": "screen", "value": "0" }]
+            },
+            "description": "params.data as a plain string renders as word-wrapped, centered text. params is one WebDataWidget \"displays\" entry, so label/color/labelColor/background/fullDraw are also accepted here."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Custom (Drawing Elements)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"control\": \"custom\",\n  \"params\": {\n    \"data\": [\n      { \"type\": \"text\", \"x\": 120, \"y\": 120, \"text\": \"Hi\", \"color\": \"white\", \"alignment\": \"mc\" }\n    ]\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens/:screen",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens", ":screen"],
+              "variable": [{ "key": "screen", "value": "0" }]
+            },
+            "description": "params.data as an array of drawing primitives (type: text|line|rectangle|triangle|circle|arc|character). Note: reading a rich custom slot back via GET is lossy — it reports elementCount, not the original primitives."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Asteroids",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"control\": \"asteroids\",\n  \"params\": {}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens/:screen",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens", ":screen"],
+              "variable": [{ "key": "screen", "value": "0" }]
+            },
+            "description": "Decorative starfield screensaver. No params."
+          },
+          "response": []
+        },
+        {
+          "name": "Set Blank",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"control\": \"blank\",\n  \"params\": {}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens/:screen",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens", ":screen"],
+              "variable": [{ "key": "screen", "value": "0" }]
+            },
+            "description": "Clears the screen to black, no content. Explicit \"nothing assigned here\" state, distinct from a slot that's never been configured."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Countdown",
+      "description": "countdown isn't \"POST the full desired state\" like every other control — it's a command verb (params.action) applied to whatever that screen's countdown is currently doing. set is the only action allowed to turn a non-countdown screen into a countdown; the others require the screen to already be a countdown in the matching state, or they 400.",
+      "item": [
+        {
+          "name": "Countdown - Set",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"control\": \"countdown\",\n  \"params\": { \"action\": \"set\", \"durationSeconds\": 900, \"label\": \"Focus\", \"color\": \"cyan\" }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens/:screen",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens", ":screen"],
+              "variable": [{ "key": "screen", "value": "0" }]
+            },
+            "description": "durationSeconds is required and must be positive. label/color are optional. Configures and immediately starts a fresh countdown. The first `set` on a screen also snapshots whatever control was there before, restored on `stop`."
+          },
+          "response": []
+        },
+        {
+          "name": "Countdown - Pause",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"control\": \"countdown\",\n  \"params\": { \"action\": \"pause\" }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens/:screen",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens", ":screen"],
+              "variable": [{ "key": "screen", "value": "0" }]
+            },
+            "description": "Freezes the remaining time. 400 if the screen isn't currently a running countdown."
+          },
+          "response": []
+        },
+        {
+          "name": "Countdown - Resume",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"control\": \"countdown\",\n  \"params\": { \"action\": \"resume\" }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens/:screen",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens", ":screen"],
+              "variable": [{ "key": "screen", "value": "0" }]
+            },
+            "description": "Continues counting down from exactly where pause left off. 400 if the screen isn't currently a paused countdown."
+          },
+          "response": []
+        },
+        {
+          "name": "Countdown - Restart",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"control\": \"countdown\",\n  \"params\": { \"action\": \"restart\" }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens/:screen",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens", ":screen"],
+              "variable": [{ "key": "screen", "value": "0" }]
+            },
+            "description": "Resets to the full original duration (reusing the existing label/color) and starts running again, from any state including completed. 400 if the screen isn't a countdown with a duration already set."
+          },
+          "response": []
+        },
+        {
+          "name": "Countdown - Stop",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"control\": \"countdown\",\n  \"params\": { \"action\": \"stop\" }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens/:screen",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens", ":screen"],
+              "variable": [{ "key": "screen", "value": "0" }]
+            },
+            "description": "Dismisses the countdown and restores whatever control was on the screen before the first `set`. 400 if the screen isn't currently a countdown."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Ticker",
+      "item": [
+        {
+          "name": "Refresh Ticker",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/screens/:screen/refresh",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "screens", ":screen", "refresh"],
+              "variable": [
+                {
+                  "key": "screen",
+                  "value": "4",
+                  "description": "Must currently be a ticker slot, or this 400s."
+                }
+              ]
+            },
+            "description": "Ticker slots only — immediately re-fetches that slot's price from twelvedata, bypassing pollIntervalSeconds and the 300s floor. No body. 400 if the screen isn't currently a ticker slot. Response is the slot's config, same shape as GET /screens/{n}."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
