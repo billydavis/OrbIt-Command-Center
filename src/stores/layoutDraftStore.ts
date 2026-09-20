@@ -64,6 +64,9 @@ interface LayoutDraftState {
   /** Discards unsaved edits for one screen, reverting to live state. */
   resetDraftSlot: (screen: number) => void;
 
+  /** Discards unsaved edits for every screen at once, reverting all drafts to live state. */
+  discardAllDrafts: () => void;
+
   /**
    * Updates one screen's live (and draft) state from a single-screen
    * response — refresh_ticker and countdown_action both return just that
@@ -107,6 +110,15 @@ export const useLayoutDraftStore = create<LayoutDraftState>((set, get) => ({
     const live = get().live[screen];
     if (!live) return;
     set((state) => ({ draft: { ...state.draft, [screen]: toInput(live) } }));
+  },
+
+  discardAllDrafts: () => {
+    const { live } = get();
+    const draft: Record<number, ScreenSlotInput> = {};
+    for (const [screenStr, slot] of Object.entries(live)) {
+      draft[Number(screenStr)] = toInput(slot);
+    }
+    set((state) => ({ draft: { ...state.draft, ...draft } }));
   },
 
   patchLive: (rawSlot) => {

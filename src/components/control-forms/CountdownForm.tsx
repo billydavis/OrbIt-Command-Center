@@ -53,7 +53,13 @@ export function CountdownForm({ screen, liveSlot, onApplied }: CountdownFormProp
       <div className="control-form countdown-panel">
         <p>
           <strong>{(liveSlot.params.label as string) || "Countdown"}</strong> — {state}
-          {typeof remaining === "number" && ` (${remaining}s left)`}
+          {typeof remaining === "number" && (
+            <>
+              {" ("}
+              <span className="mono-num">{remaining}</span>
+              {"s left)"}
+            </>
+          )}
         </p>
         <div className="button-row">
           {state === "running" && (
@@ -93,7 +99,7 @@ function CountdownSetForm({
 }) {
   const { register, handleSubmit, watch } = useForm<CountdownSetFormValues>({
     resolver: zodResolver(countdownSetSchema),
-    defaultValues: { durationSeconds: 300, label: "", color: "" },
+    defaultValues: { durationSeconds: 300, label: "", color: "cyan" },
   });
 
   return (

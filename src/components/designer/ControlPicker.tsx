@@ -1,17 +1,5 @@
 import { CONTROL_TYPES, type ControlType } from "../../lib/types";
-
-const LABELS: Record<ControlType, string> = {
-  blank: "Blank",
-  time: "Time",
-  analogClock: "Analog Clock",
-  gauge: "Gauge",
-  sysMonitor: "System Monitor",
-  weather: "Weather",
-  ticker: "Ticker",
-  custom: "Custom",
-  asteroids: "Asteroids (screensaver)",
-  countdown: "Countdown",
-};
+import { CONTROL_LABELS } from "../../lib/controlLabels";
 
 interface ControlPickerProps {
   value: ControlType;
@@ -29,7 +17,7 @@ export function ControlPicker({ value, onChange }: ControlPickerProps) {
       >
         {CONTROL_TYPES.map((c) => (
           <option key={c} value={c}>
-            {LABELS[c]}
+            {CONTROL_LABELS[c]}
           </option>
         ))}
       </select>

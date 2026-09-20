@@ -25,13 +25,20 @@ export function ScreenEditor({ screen }: ScreenEditorProps) {
   const control = draft.control as ControlType;
 
   // countdown doesn't have a "draft params, apply later" form — it acts
-  // directly against live device state (see CountdownForm.tsx).
-  if (control === "countdown" || live.control === "countdown") {
+  // directly against live device state (see CountdownForm.tsx). Only shown
+  // while the draft selection is actually "countdown" — draft starts out
+  // matching live (see syncFromDevice/patchLive), so a screen that's
+  // already a live countdown opens here too, but picking a different
+  // control from the dropdown must be able to leave this branch even
+  // though `live.control` stays "countdown" until Applied/Stopped.
+  if (control === "countdown") {
     return (
       <div className="screen-editor">
-        <h3>Screen {screen}</h3>
+        <h3>
+          Screen <span className="mono-num">{screen}</span>
+        </h3>
         <ControlPicker
-          value={live.control === "countdown" ? "countdown" : control}
+          value={control}
           onChange={(next) => setDraftSlot(screen, { control: next, params: {} })}
         />
         <CountdownForm screen={screen} liveSlot={live} onApplied={patchLive} />
@@ -58,14 +65,23 @@ export function ScreenEditor({ screen }: ScreenEditorProps) {
 
   return (
     <div className="screen-editor">
-      <h3>Screen {screen}</h3>
+      <h3>
+        Screen <span className="mono-num">{screen}</span>
+      </h3>
       <ControlPicker
         value={control}
         onChange={(next) => setDraftSlot(screen, { control: next, params: {} })}
       />
       {Form && (
         <Form
-          key={control}
+          // Keyed on screen too, not just control: forms like AnalogClockForm
+          // capture initialParams into local state once at mount (matching
+          // useForm's own defaultValues) — keying on control alone means
+          // switching from one screen to a different screen that happens to
+          // share the same control type wouldn't remount the form, leaving
+          // it showing the previous screen's values/state instead of the
+          // newly-selected screen's actual params.
+          key={`${screen}-${control}`}
           screen={screen}
           initialParams={draft.params}
           onChange={(params) => setDraftSlot(screen, { control, params })}

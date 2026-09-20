@@ -18,7 +18,11 @@ export function ProfileList({ onApplied }: ProfileListProps) {
 
   return (
     <section className="profiles-section">
-      <h2>Profiles</h2>
+      <h2>Saved Layouts</h2>
+      <p className="field-hint profiles-section-hint">
+        Saves what's currently configured for each screen, applied or not, as one named layout you
+        can recall later. Countdown screens aren't included.
+      </p>
       <SaveProfileDialog />
       {profiles.length === 0 ? (
         <p className="field-hint">No saved profiles yet.</p>

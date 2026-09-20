@@ -1,4 +1,5 @@
-import type { ScreenSlot } from "../../lib/types";
+import type { ControlType, ScreenSlot } from "../../lib/types";
+import { CONTROL_LABELS } from "../../lib/controlLabels";
 
 interface ScreenTileProps {
   index: number;
@@ -19,7 +20,9 @@ export function ScreenTile({ index, slot, selected, dirty, onSelect }: ScreenTil
       <div className="screen-tile-circle">
         {dirty && <span className="screen-tile-dirty-dot" title="Unsaved changes" />}
         <span className="screen-tile-index">{index}</span>
-        <span className="screen-tile-control">{slot?.control ?? "…"}</span>
+        <span className="screen-tile-control">
+          {slot?.control ? (CONTROL_LABELS[slot.control as ControlType] ?? slot.control) : "…"}
+        </span>
       </div>
       <span className="screen-tile-label">Screen {index}</span>
     </button>

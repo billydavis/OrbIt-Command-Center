@@ -17,6 +17,7 @@ import { useDeviceStore } from "./stores/deviceStore";
 import "./App.css";
 
 const BACKGROUND_ERROR_AUTO_DISMISS_MS = 10_000;
+const APPLY_SUCCESS_AUTO_DISMISS_MS = 3_000;
 
 function App() {
   const host = useDeviceStore((s) => s.host);
@@ -30,6 +31,11 @@ function App() {
   const [applyState, setApplyState] = useState<"idle" | "applying" | "error">("idle");
   const [applyError, setApplyError] = useState<string | null>(null);
   const [backgroundError, setBackgroundError] = useState<string | null>(null);
+  // dirtyCount hits 0 the instant a successful apply resyncs draft to live,
+  // which is also the apply-bar's render condition — so success and "the
+  // bar disappears" happen in the same tick, with no window to show
+  // confirmation inside that bar. Tracked separately here instead.
+  const [applySuccessMessage, setApplySuccessMessage] = useState<string | null>(null);
 
   // sysmonitor/task.rs emits this when a background push fails (device
   // offline/unreachable mid-loop) — surfaced here since it happens outside
@@ -55,10 +61,17 @@ function App() {
     return () => clearTimeout(timer);
   }, [backgroundError]);
 
+  useEffect(() => {
+    if (!applySuccessMessage) return;
+    const timer = setTimeout(() => setApplySuccessMessage(null), APPLY_SUCCESS_AUTO_DISMISS_MS);
+    return () => clearTimeout(timer);
+  }, [applySuccessMessage]);
+
   const draft = useLayoutDraftStore((s) => s.draft);
   const isDirty = useLayoutDraftStore((s) => s.isDirty);
   const syncFromDevice = useLayoutDraftStore((s) => s.syncFromDevice);
   const patchLive = useLayoutDraftStore((s) => s.patchLive);
+  const discardAllDrafts = useLayoutDraftStore((s) => s.discardAllDrafts);
 
   function handleConnected(screens: ScreenSlot[]) {
     syncFromDevice(screens);
@@ -108,11 +121,19 @@ function App() {
       const applied = await applyLayout(toApply);
       applied.forEach(patchLive);
       setApplyState("idle");
+      setApplySuccessMessage(
+        `Applied ${applied.length} screen${applied.length === 1 ? "" : "s"} to device`,
+      );
     } catch (err) {
       setApplyState("error");
       setApplyError(describeOrbitError(err));
       if (isConnectionLost(err)) markLost(describeOrbitError(err));
     }
+  }
+
+  function handleDiscardAll() {
+    discardAllDrafts();
+    setApplyError(null);
   }
 
   const connected = connectionStatus === "connected";
@@ -133,12 +154,22 @@ function App() {
         </p>
       )}
 
+      {applySuccessMessage && (
+        <p className="apply-success-banner background-error">
+          ✓ {applySuccessMessage}
+          <button type="button" onClick={() => setApplySuccessMessage(null)}>
+            Dismiss
+          </button>
+        </p>
+      )}
+
       {!connected ? (
         <ConnectionSettings onConnected={handleConnected} />
       ) : (
         <>
           <div className="connected-bar">
-            <span>
+            <span className="connected-status">
+              <span className="connected-status-dot" aria-hidden="true" />
               Connected to <strong>{host}</strong>
             </span>
             <div className="button-row">
@@ -148,17 +179,9 @@ function App() {
               <button type="button" disabled={refreshing} onClick={handleRefresh}>
                 {refreshing ? "Refreshing…" : "Refresh"}
               </button>
-              <button
-                type="button"
-                disabled={dirtyCount === 0 || applyState === "applying"}
-                onClick={handleApplyLayout}
-              >
-                {applyState === "applying" ? "Applying…" : `Apply Layout${dirtyCount ? ` (${dirtyCount})` : ""}`}
-              </button>
             </div>
           </div>
           {refreshError && <p className="connection-settings-error">{refreshError}</p>}
-          {applyError && <p className="connection-settings-error">{applyError}</p>}
 
           <ScreenGrid selected={selected} onSelect={setSelected} />
 
@@ -166,6 +189,23 @@ function App() {
 
           <ProfileList onApplied={handleProfileApplied} />
         </>
+      )}
+
+      {connected && dirtyCount > 0 && (
+        <div className="apply-bar">
+          <span className="apply-bar-status">
+            {dirtyCount} screen{dirtyCount === 1 ? "" : "s"} changed
+          </span>
+          <div className="button-row">
+            <button type="button" disabled={applyState === "applying"} onClick={handleDiscardAll}>
+              Discard
+            </button>
+            <button type="button" disabled={applyState === "applying"} onClick={handleApplyLayout}>
+              {applyState === "applying" ? "Applying…" : `Apply Layout (${dirtyCount})`}
+            </button>
+          </div>
+          {applyError && <p className="field-error apply-bar-error">{applyError}</p>}
+        </div>
       )}
     </main>
   );
