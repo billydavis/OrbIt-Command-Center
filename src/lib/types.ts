@@ -46,6 +46,24 @@ export type CountdownAction =
 
 // Mirrors src-tauri/src/device/error.rs::OrbitError's serde(tag = "kind",
 // content = "message") shape.
+/**
+ * Device status from the core info-orbs web service (GET /api/v1/system),
+ * pushed by the heartbeat every few seconds — see src-tauri/src/heartbeat.rs.
+ * Only on firmware that has that endpoint.
+ */
+export interface SystemInfo {
+  hostname: string;
+  ip: string;
+  mac: string;
+  ssid: string;
+  /** WiFi signal in dBm (negative; closer to 0 is stronger). */
+  rssi: number;
+  uptimeSeconds: number;
+  freeHeap: number;
+  minFreeHeap: number;
+  firmwareBuilt: string;
+}
+
 /** An OrbIt device found by an mDNS scan (src-tauri/src/discovery). */
 export interface DiscoveredDevice {
   name: string;

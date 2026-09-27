@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { connectDevice, disconnectDevice } from "../lib/tauriCommands";
-import { describeOrbitError, type ScreenSlot } from "../lib/types";
+import { describeOrbitError, type ScreenSlot, type SystemInfo } from "../lib/types";
 
 type ConnectionStatus = "disconnected" | "connecting" | "connected" | "lost";
 
@@ -18,6 +18,12 @@ interface DeviceState {
   status: ConnectionStatus;
   /** Set on a failed connect attempt, or when markLost fires. */
   error: string | null;
+  /**
+   * Latest status from the heartbeat (null until the first probe, on
+   * firmware without GET /api/v1/system, or while not connected). Not
+   * persisted — it describes a live connection.
+   */
+  system: SystemInfo | null;
 
   connect: (host: string, hostname?: string) => Promise<ScreenSlot[]>;
   disconnect: () => Promise<void>;
@@ -29,6 +35,7 @@ interface DeviceState {
    * showing a device that's no longer actually there.
    */
   markLost: (message: string) => void;
+  setSystem: (system: SystemInfo) => void;
 }
 
 export const useDeviceStore = create<DeviceState>()(
@@ -38,9 +45,10 @@ export const useDeviceStore = create<DeviceState>()(
       hostname: null,
       status: "disconnected",
       error: null,
+      system: null,
 
       connect: async (host, hostname) => {
-        set({ status: "connecting", error: null });
+        set({ status: "connecting", error: null, system: null });
         try {
           const screens = await connectDevice(host);
           const knownHostname = hostname ?? (host.toLowerCase().endsWith(".local") ? host.toLowerCase() : null);
@@ -54,14 +62,21 @@ export const useDeviceStore = create<DeviceState>()(
 
       disconnect: async () => {
         await disconnectDevice();
-        set({ host: null, hostname: null, status: "disconnected", error: null });
+        set({ host: null, hostname: null, status: "disconnected", error: null, system: null });
       },
 
       markLost: (message) => {
         // Only meaningful once actually connected — an error before that point
         // is just a normal failed-connect-attempt, handled by connect() itself.
         if (get().status !== "connected") return;
-        set({ status: "lost", error: message });
+        set({ status: "lost", error: message, system: null });
+      },
+
+      setSystem: (system) => {
+        // A late event from a probe that raced a disconnect shouldn't
+        // repopulate status for a device that's no longer connected.
+        if (get().status !== "connected") return;
+        set({ system });
       },
     }),
     {

@@ -18,6 +18,28 @@ pub struct ScreenSlot {
     pub updated_at: u64,
 }
 
+/// GET /api/v1/system — the core info-orbs web service's device status
+/// (outside the OrbIt API, so not in docs/orbit-api.md; firmware source:
+/// `WebService::fillSystemInfo`). Only on firmware that includes the core
+/// web service; older builds 404. Every field is `default` so a firmware
+/// build that adds, drops or renames one doesn't fail the heartbeat.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct SystemInfo {
+    /// e.g. "info-orbs.local"
+    pub hostname: String,
+    pub ip: String,
+    pub mac: String,
+    pub ssid: String,
+    /// WiFi signal strength in dBm (negative; closer to 0 is stronger).
+    pub rssi: i32,
+    pub uptime_seconds: u64,
+    pub free_heap: u64,
+    pub min_free_heap: u64,
+    /// Compile timestamp, e.g. "Sep 20 2026 14:03:11".
+    pub firmware_built: String,
+}
+
 #[derive(Debug, Deserialize)]
 pub(super) struct ScreensResponse {
     pub screens: Vec<ScreenSlot>,

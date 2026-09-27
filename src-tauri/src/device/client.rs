@@ -5,7 +5,7 @@ use serde::de::DeserializeOwned;
 use super::error::OrbitError;
 use super::model::{
     BulkScreenSlotInput, BulkScreensRequest, CountdownAction, DeviceErrorBody, ScreenSlot,
-    ScreenSlotInput, ScreensResponse,
+    ScreenSlotInput, ScreensResponse, SystemInfo,
 };
 
 // LAN-only device: a wrong/unreachable IP should fail fast in the UI rather
@@ -22,6 +22,10 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
 #[derive(Clone)]
 pub struct OrbitClient {
     http: reqwest::Client,
+    /// `http://{host}` — the core info-orbs web service's endpoints
+    /// (e.g. /api/v1/system) hang off this directly.
+    root_url: String,
+    /// `{root_url}/orbit/api/v1` — every OrbIt API endpoint.
     base_url: String,
 }
 
@@ -35,9 +39,11 @@ impl OrbitClient {
             .build()
             .expect("reqwest client should build with static config");
 
+        let root_url = format!("http://{host}");
         Self {
             http,
-            base_url: format!("http://{host}/orbit/api/v1"),
+            base_url: format!("{root_url}/orbit/api/v1"),
+            root_url,
         }
     }
 
@@ -45,14 +51,31 @@ impl OrbitClient {
     /// server), bypassing the `http://{host}/orbit/api/v1` assembly above.
     #[cfg(test)]
     fn with_base_url(base_url: impl Into<String>) -> Self {
+        let base_url = base_url.into();
+        let root_url = base_url.strip_suffix("/orbit/api/v1").unwrap_or(&base_url).to_string();
         Self {
             http: reqwest::Client::builder()
                 .connect_timeout(CONNECT_TIMEOUT)
                 .timeout(REQUEST_TIMEOUT)
                 .build()
                 .expect("reqwest client should build with static config"),
-            base_url: base_url.into(),
+            root_url,
+            base_url,
         }
+    }
+
+    /// Identifies which device this client talks to — used by the heartbeat
+    /// to check the connection it probed is still the current one before
+    /// tearing it down.
+    pub fn base_url(&self) -> &str {
+        &self.base_url
+    }
+
+    /// Device status from the core web service (not the OrbIt API). Fails
+    /// with `DeviceRejected { status: 404, .. }` on firmware without it.
+    pub async fn get_system(&self) -> Result<SystemInfo, OrbitError> {
+        let url = format!("{}/api/v1/system", self.root_url);
+        self.send_json(self.http.get(url)).await
     }
 
     pub async fn get_screens(&self) -> Result<Vec<ScreenSlot>, OrbitError> {
@@ -285,5 +308,40 @@ mod tests {
             .expect("countdown set should succeed");
 
         assert_eq!(slot.params["state"], "running");
+    }
+
+    #[tokio::test]
+    async fn get_system_hits_the_core_endpoint_outside_the_orbit_api() {
+        let server = MockServer::start().await;
+        // Same shape as a real device response (values anonymised).
+        let body = r#"{"hostname":"info-orbs.local","ip":"192.168.4.56","mac":"AA:BB:CC:DD:EE:FF","ssid":"home","rssi":-58,"uptimeSeconds":767,"freeHeap":123456,"minFreeHeap":98765,"firmwareBuilt":"Sep 20 2026 14:03:11"}"#;
+        Mock::given(method("GET"))
+            .and(path("/api/v1/system"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(body, "application/json"))
+            .mount(&server)
+            .await;
+
+        let client = OrbitClient::with_base_url(format!("{}/orbit/api/v1", server.uri()));
+        let info = client.get_system().await.expect("request should succeed");
+
+        assert_eq!(info.hostname, "info-orbs.local");
+        assert_eq!(info.rssi, -58);
+        assert_eq!(info.uptime_seconds, 767);
+        assert_eq!(info.firmware_built, "Sep 20 2026 14:03:11");
+    }
+
+    #[tokio::test]
+    async fn get_system_reports_404_on_firmware_without_the_core_web_service() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/v1/system"))
+            .respond_with(ResponseTemplate::new(404).set_body_raw(r#"{"error":"not found"}"#, "application/json"))
+            .mount(&server)
+            .await;
+
+        let client = OrbitClient::with_base_url(format!("{}/orbit/api/v1", server.uri()));
+        let err = client.get_system().await.expect_err("should fail");
+
+        assert!(matches!(err, OrbitError::DeviceRejected { status: 404, .. }));
     }
 }

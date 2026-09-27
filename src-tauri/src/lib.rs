@@ -1,6 +1,7 @@
 mod commands;
 mod device;
 mod discovery;
+mod heartbeat;
 mod persistence;
 mod state;
 mod sysmonitor;
@@ -16,7 +17,8 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             tray::setup(&handle)?;
-            sysmonitor::spawn(handle);
+            sysmonitor::spawn(handle.clone());
+            heartbeat::spawn(handle);
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

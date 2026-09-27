@@ -14,6 +14,7 @@ import {
   type BulkScreenSlotInput,
   type OrbitError,
   type ScreenSlot,
+  type SystemInfo,
 } from "./lib/types";
 import { useLayoutDraftStore } from "./stores/layoutDraftStore";
 import { useDeviceStore } from "./stores/deviceStore";
@@ -21,6 +22,7 @@ import "./App.css";
 
 const BACKGROUND_ERROR_AUTO_DISMISS_MS = 10_000;
 const APPLY_SUCCESS_AUTO_DISMISS_MS = 3_000;
+const REBOOT_NOTICE_AUTO_DISMISS_MS = 10_000;
 
 function App() {
   useApplyTheme();
@@ -29,6 +31,7 @@ function App() {
   const connectionStatus = useDeviceStore((s) => s.status);
   const disconnect = useDeviceStore((s) => s.disconnect);
   const markLost = useDeviceStore((s) => s.markLost);
+  const setSystem = useDeviceStore((s) => s.setSystem);
 
   const [selected, setSelected] = useState<number | null>(null);
   const [profilesOpen, setProfilesOpen] = useState(false);
@@ -42,24 +45,47 @@ function App() {
   // bar disappears" happen in the same tick, with no window to show
   // confirmation inside that bar. Tracked separately here instead.
   const [applySuccessMessage, setApplySuccessMessage] = useState<string | null>(null);
+  const [rebootNotice, setRebootNotice] = useState(false);
 
-  // sysmonitor/task.rs emits this when a background push fails (device
-  // offline/unreachable mid-loop) — surfaced here since it happens outside
-  // any user-initiated command and wouldn't otherwise be visible. It also
-  // drops the app back to the connect screen if the failure means the
-  // device is actually gone, not just one bad request.
+  // sysmonitor/task.rs emits this when a background push fails, and
+  // heartbeat.rs when the device stops answering — surfaced here since it
+  // happens outside any user-initiated command and wouldn't otherwise be
+  // visible. A device that's actually gone drops the app back to the
+  // connect screen, which says so itself; anything else (one rejected push)
+  // gets the banner.
   useEffect(() => {
     const unlisten = listen<OrbitError>("device-error", (event) => {
       const message = describeOrbitError(event.payload);
-      setBackgroundError(message);
       if (isConnectionLost(event.payload)) {
         markLost(message);
+      } else {
+        setBackgroundError(message);
       }
     });
     return () => {
       unlisten.then((f) => f());
     };
   }, [markLost]);
+
+  // heartbeat.rs: live device status, and a restart that was quick enough
+  // that the heartbeat never saw the device go missing. The layout itself
+  // mostly survives (the device restores it from flash), but countdown slots
+  // aren't persisted — so offer a Refresh rather than resyncing
+  // automatically, which would throw away any unsaved drafts.
+  useEffect(() => {
+    const unlistenSystem = listen<SystemInfo>("device://system", (event) => setSystem(event.payload));
+    const unlistenRebooted = listen<SystemInfo>("device://rebooted", () => setRebootNotice(true));
+    return () => {
+      unlistenSystem.then((f) => f());
+      unlistenRebooted.then((f) => f());
+    };
+  }, [setSystem]);
+
+  useEffect(() => {
+    if (!rebootNotice) return;
+    const timer = setTimeout(() => setRebootNotice(false), REBOOT_NOTICE_AUTO_DISMISS_MS);
+    return () => clearTimeout(timer);
+  }, [rebootNotice]);
 
   useEffect(() => {
     if (!backgroundError) return;
@@ -184,6 +210,21 @@ function App() {
             ✓ {applySuccessMessage}
             <button type="button" onClick={() => setApplySuccessMessage(null)}>
               Dismiss
+            </button>
+          </p>
+        )}
+
+        {rebootNotice && connected && (
+          <p className="apply-success-banner background-error" role="status">
+            The orb restarted and restored its saved layout. Countdowns aren't saved, so any were cleared.
+            <button
+              type="button"
+              onClick={() => {
+                setRebootNotice(false);
+                void handleRefresh();
+              }}
+            >
+              Refresh
             </button>
           </p>
         )}
