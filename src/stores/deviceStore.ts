@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import { connectDevice, disconnectDevice } from "../lib/tauriCommands";
 import { describeOrbitError, type ScreenSlot } from "../lib/types";
 
@@ -10,7 +11,8 @@ interface DeviceState {
    * The device's mDNS hostname (e.g. "info-orbs-ab.local") when known —
    * from a discovery scan, or a manually entered .local name. Kept after
    * the connection is lost so a re-scan can recognise the same device even
-   * if DHCP has since given it a new IP.
+   * if DHCP has since given it a new IP. Saved (with `host`) across app
+   * restarts, so launching the app reconnects to the last-used device.
    */
   hostname: string | null;
   status: ConnectionStatus;
@@ -29,34 +31,44 @@ interface DeviceState {
   markLost: (message: string) => void;
 }
 
-export const useDeviceStore = create<DeviceState>((set, get) => ({
-  host: null,
-  hostname: null,
-  status: "disconnected",
-  error: null,
+export const useDeviceStore = create<DeviceState>()(
+  persist(
+    (set, get) => ({
+      host: null,
+      hostname: null,
+      status: "disconnected",
+      error: null,
 
-  connect: async (host, hostname) => {
-    set({ status: "connecting", error: null });
-    try {
-      const screens = await connectDevice(host);
-      const knownHostname = hostname ?? (host.toLowerCase().endsWith(".local") ? host.toLowerCase() : null);
-      set({ host, hostname: knownHostname, status: "connected", error: null });
-      return screens;
-    } catch (err) {
-      set({ status: "disconnected", error: describeOrbitError(err) });
-      throw err;
-    }
-  },
+      connect: async (host, hostname) => {
+        set({ status: "connecting", error: null });
+        try {
+          const screens = await connectDevice(host);
+          const knownHostname = hostname ?? (host.toLowerCase().endsWith(".local") ? host.toLowerCase() : null);
+          set({ host, hostname: knownHostname, status: "connected", error: null });
+          return screens;
+        } catch (err) {
+          set({ status: "disconnected", error: describeOrbitError(err) });
+          throw err;
+        }
+      },
 
-  disconnect: async () => {
-    await disconnectDevice();
-    set({ host: null, hostname: null, status: "disconnected", error: null });
-  },
+      disconnect: async () => {
+        await disconnectDevice();
+        set({ host: null, hostname: null, status: "disconnected", error: null });
+      },
 
-  markLost: (message) => {
-    // Only meaningful once actually connected — an error before that point
-    // is just a normal failed-connect-attempt, handled by connect() itself.
-    if (get().status !== "connected") return;
-    set({ status: "lost", error: message });
-  },
-}));
+      markLost: (message) => {
+        // Only meaningful once actually connected — an error before that point
+        // is just a normal failed-connect-attempt, handled by connect() itself.
+        if (get().status !== "connected") return;
+        set({ status: "lost", error: message });
+      },
+    }),
+    {
+      name: "orbit-device",
+      // Only which device was last used — never status/error, which describe
+      // a connection that doesn't exist yet when the app starts.
+      partialize: (s) => ({ host: s.host, hostname: s.hostname }),
+    },
+  ),
+);
