@@ -206,6 +206,82 @@ button.destructive:focus-visible {
   flex: 1;
 }
 
+.connection-settings-manual {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.discovery {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.discovery-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.discovery-header h2 {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-medium);
+  opacity: 0.8;
+}
+
+.discovery-header button {
+  padding: 0.3em 0.8em;
+  font-size: var(--text-sm);
+}
+
+.discovery-hint {
+  margin: 0;
+  text-align: left;
+  font-size: var(--text-sm);
+  opacity: 0.7;
+}
+
+.discovery-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.discovery-device {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.discovery-device-name {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.discovery-device-badge {
+  font-size: var(--text-xs);
+  color: var(--color-live);
+}
+
+.discovery-device-address {
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+}
+
 .connection-settings-error {
   color: var(--color-alert);
   font-size: var(--text-sm);

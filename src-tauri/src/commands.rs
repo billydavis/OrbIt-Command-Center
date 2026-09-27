@@ -3,6 +3,7 @@ use tauri::{AppHandle, State};
 use crate::device::{
     BulkScreenSlotInput, CountdownAction, OrbitClient, OrbitError, ScreenSlot, ScreenSlotInput,
 };
+use crate::discovery::{self, DiscoveredDevice};
 use crate::persistence::{profile_store, Profile, ProfileError};
 use crate::state::AppState;
 
@@ -25,6 +26,13 @@ pub async fn connect_device(
 pub fn disconnect_device(state: State<'_, AppState>) {
     *state.device.lock().expect("device state mutex poisoned") = None;
     *state.last_layout.lock().expect("layout mutex poisoned") = None;
+}
+
+/// Scans the LAN over mDNS for OrbIt devices (see discovery/mod.rs). Takes a
+/// few seconds by design; doesn't touch the current connection.
+#[tauri::command]
+pub async fn discover_devices() -> Result<Vec<DiscoveredDevice>, OrbitError> {
+    discovery::scan().await
 }
 
 #[tauri::command]

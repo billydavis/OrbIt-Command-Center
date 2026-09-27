@@ -2,6 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   BulkScreenSlotInput,
   CountdownAction,
+  DiscoveredDevice,
   Profile,
   ScreenSlot,
   ScreenSlotInput,
@@ -17,6 +18,11 @@ export function connectDevice(host: string): Promise<ScreenSlot[]> {
 
 export function disconnectDevice(): Promise<void> {
   return invoke("disconnect_device");
+}
+
+/** Scans the LAN over mDNS for ~3s and resolves with every OrbIt device found. */
+export function discoverDevices(): Promise<DiscoveredDevice[]> {
+  return invoke("discover_devices");
 }
 
 export function getScreens(): Promise<ScreenSlot[]> {

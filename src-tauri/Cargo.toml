@@ -27,6 +27,7 @@ reqwest = { version = "0.12", features = ["json"] }
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync", "process"] }
 thiserror = "2"
 sysinfo = "0.32"
+mdns-sd = "0.21.4"
 
 
 # Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration

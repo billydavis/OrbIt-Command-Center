@@ -1,5 +1,6 @@
 mod commands;
 mod device;
+mod discovery;
 mod persistence;
 mod state;
 mod sysmonitor;
@@ -21,6 +22,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             commands::connect_device,
             commands::disconnect_device,
+            commands::discover_devices,
             commands::get_screens,
             commands::get_screen,
             commands::apply_layout,

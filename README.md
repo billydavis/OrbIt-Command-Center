@@ -43,8 +43,11 @@ npm install
 npm run tauri dev
 ```
 
-Enter your device's IP or hostname (find it from the device's serial log or
-your router's DHCP client list — there's no auto-discovery yet) and connect.
+The connect screen scans your network over mDNS and lists every orb running
+the OrbIt widget — click one to connect. Discovery needs firmware with the core
+web service (it advertises `_http._tcp` with an `orbit` TXT record); Windows may
+ask you to allow the app through the firewall the first time it scans. If your
+orb doesn't show up, enter its IP or `info-orbs-XX.local` hostname manually.
 
 To build an installable binary instead:
 
@@ -99,8 +102,6 @@ of truth.
 
 Not in v1, in roughly the order they'd get picked up:
 
-- mDNS auto-discovery (needs a small firmware-side change to advertise the
-  device)
 - Multiple saved devices
 - Scheduling/automation for switching profiles
 - A visual drawing-primitive editor for the `custom` control (v1 edits its

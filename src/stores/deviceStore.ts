@@ -6,11 +6,18 @@ type ConnectionStatus = "disconnected" | "connecting" | "connected" | "lost";
 
 interface DeviceState {
   host: string | null;
+  /**
+   * The device's mDNS hostname (e.g. "info-orbs-ab.local") when known —
+   * from a discovery scan, or a manually entered .local name. Kept after
+   * the connection is lost so a re-scan can recognise the same device even
+   * if DHCP has since given it a new IP.
+   */
+  hostname: string | null;
   status: ConnectionStatus;
   /** Set on a failed connect attempt, or when markLost fires. */
   error: string | null;
 
-  connect: (host: string) => Promise<ScreenSlot[]>;
+  connect: (host: string, hostname?: string) => Promise<ScreenSlot[]>;
   disconnect: () => Promise<void>;
   /**
    * Called by any command's error handler (ScreenEditor, ProfileCard,
@@ -24,14 +31,16 @@ interface DeviceState {
 
 export const useDeviceStore = create<DeviceState>((set, get) => ({
   host: null,
+  hostname: null,
   status: "disconnected",
   error: null,
 
-  connect: async (host) => {
+  connect: async (host, hostname) => {
     set({ status: "connecting", error: null });
     try {
       const screens = await connectDevice(host);
-      set({ host, status: "connected", error: null });
+      const knownHostname = hostname ?? (host.toLowerCase().endsWith(".local") ? host.toLowerCase() : null);
+      set({ host, hostname: knownHostname, status: "connected", error: null });
       return screens;
     } catch (err) {
       set({ status: "disconnected", error: describeOrbitError(err) });
@@ -41,7 +50,7 @@ export const useDeviceStore = create<DeviceState>((set, get) => ({
 
   disconnect: async () => {
     await disconnectDevice();
-    set({ host: null, status: "disconnected", error: null });
+    set({ host: null, hostname: null, status: "disconnected", error: null });
   },
 
   markLost: (message) => {

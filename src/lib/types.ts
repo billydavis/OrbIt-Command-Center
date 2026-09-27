@@ -46,6 +46,17 @@ export type CountdownAction =
 
 // Mirrors src-tauri/src/device/error.rs::OrbitError's serde(tag = "kind",
 // content = "message") shape.
+/** An OrbIt device found by an mDNS scan (src-tauri/src/discovery). */
+export interface DiscoveredDevice {
+  name: string;
+  /** e.g. "info-orbs-ab.local" — stable across IP changes. */
+  hostname: string;
+  ip: string;
+  port: number;
+  /** What to pass to connectDevice(). */
+  address: string;
+}
+
 export type OrbitError =
   | { kind: "Unreachable"; message: string }
   | { kind: "Timeout" }
