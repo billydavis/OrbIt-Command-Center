@@ -20,6 +20,10 @@ const FAILURES_BEFORE_LOST: u32 = 2;
 /// that has GET /api/v1/system.
 pub const SYSTEM_EVENT: &str = "device://system";
 
+/// Emitted (no payload) once per connection when the firmware turns out not
+/// to have GET /api/v1/system, so the UI can say so instead of waiting.
+pub const SYSTEM_UNSUPPORTED_EVENT: &str = "device://system-unsupported";
+
 /// Emitted with the new `SystemInfo` when the device's uptime went
 /// backwards between probes — it restarted quickly enough that the probes
 /// never saw it go missing.
@@ -71,6 +75,7 @@ async fn probe(app: &AppHandle, tracker: &mut Tracker) {
         match client.get_system().await {
             Err(OrbitError::DeviceRejected { status: 404, .. }) => {
                 tracker.system_unsupported = true;
+                let _ = app.emit(SYSTEM_UNSUPPORTED_EVENT, ());
                 client.get_screens().await.map(|_| None)
             }
             other => other.map(Some),

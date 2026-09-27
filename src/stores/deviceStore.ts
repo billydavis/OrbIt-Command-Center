@@ -24,6 +24,8 @@ interface DeviceState {
    * persisted — it describes a live connection.
    */
   system: SystemInfo | null;
+  /** The connected firmware has no GET /api/v1/system, so `system` stays null. */
+  systemUnsupported: boolean;
 
   connect: (host: string, hostname?: string) => Promise<ScreenSlot[]>;
   disconnect: () => Promise<void>;
@@ -36,6 +38,7 @@ interface DeviceState {
    */
   markLost: (message: string) => void;
   setSystem: (system: SystemInfo) => void;
+  setSystemUnsupported: () => void;
 }
 
 export const useDeviceStore = create<DeviceState>()(
@@ -46,9 +49,10 @@ export const useDeviceStore = create<DeviceState>()(
       status: "disconnected",
       error: null,
       system: null,
+      systemUnsupported: false,
 
       connect: async (host, hostname) => {
-        set({ status: "connecting", error: null, system: null });
+        set({ status: "connecting", error: null, system: null, systemUnsupported: false });
         try {
           const screens = await connectDevice(host);
           const knownHostname = hostname ?? (host.toLowerCase().endsWith(".local") ? host.toLowerCase() : null);
@@ -62,14 +66,21 @@ export const useDeviceStore = create<DeviceState>()(
 
       disconnect: async () => {
         await disconnectDevice();
-        set({ host: null, hostname: null, status: "disconnected", error: null, system: null });
+        set({
+          host: null,
+          hostname: null,
+          status: "disconnected",
+          error: null,
+          system: null,
+          systemUnsupported: false,
+        });
       },
 
       markLost: (message) => {
         // Only meaningful once actually connected — an error before that point
         // is just a normal failed-connect-attempt, handled by connect() itself.
         if (get().status !== "connected") return;
-        set({ status: "lost", error: message, system: null });
+        set({ status: "lost", error: message, system: null, systemUnsupported: false });
       },
 
       setSystem: (system) => {
@@ -77,6 +88,11 @@ export const useDeviceStore = create<DeviceState>()(
         // repopulate status for a device that's no longer connected.
         if (get().status !== "connected") return;
         set({ system });
+      },
+
+      setSystemUnsupported: () => {
+        if (get().status !== "connected") return;
+        set({ systemUnsupported: true });
       },
     }),
     {

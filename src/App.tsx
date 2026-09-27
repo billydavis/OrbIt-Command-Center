@@ -6,6 +6,7 @@ import { ScreenGrid } from "./components/designer/ScreenGrid";
 import { ScreenEditor } from "./components/designer/ScreenEditor";
 import { ProfilesDrawer } from "./components/profiles/ProfilesDrawer";
 import { ThemeControl } from "./components/theme/ThemeControl";
+import { StatusBar } from "./components/status/StatusBar";
 import { useApplyTheme } from "./hooks/useApplyTheme";
 import { applyLayout, getScreens } from "./lib/tauriCommands";
 import {
@@ -32,6 +33,7 @@ function App() {
   const disconnect = useDeviceStore((s) => s.disconnect);
   const markLost = useDeviceStore((s) => s.markLost);
   const setSystem = useDeviceStore((s) => s.setSystem);
+  const setSystemUnsupported = useDeviceStore((s) => s.setSystemUnsupported);
 
   const [selected, setSelected] = useState<number | null>(null);
   const [profilesOpen, setProfilesOpen] = useState(false);
@@ -74,12 +76,14 @@ function App() {
   // automatically, which would throw away any unsaved drafts.
   useEffect(() => {
     const unlistenSystem = listen<SystemInfo>("device://system", (event) => setSystem(event.payload));
+    const unlistenUnsupported = listen("device://system-unsupported", () => setSystemUnsupported());
     const unlistenRebooted = listen<SystemInfo>("device://rebooted", () => setRebootNotice(true));
     return () => {
       unlistenSystem.then((f) => f());
+      unlistenUnsupported.then((f) => f());
       unlistenRebooted.then((f) => f());
     };
-  }, [setSystem]);
+  }, [setSystem, setSystemUnsupported]);
 
   useEffect(() => {
     if (!rebootNotice) return;
@@ -174,7 +178,7 @@ function App() {
     : 0;
 
   return (
-    <main className="app-shell">
+    <main className={`app-shell${connected ? " has-status-bar" : ""}`}>
       <header className="app-header">
         <h1>OrbIt Command Center</h1>
         <div className="app-header-actions">
@@ -266,6 +270,8 @@ function App() {
           {applyError && <p className="field-error apply-bar-error">{applyError}</p>}
         </div>
       )}
+
+      {connected && <StatusBar />}
     </main>
   );
 }

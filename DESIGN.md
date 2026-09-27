@@ -275,6 +275,17 @@ Live Green dot (`.connected-status-dot`, 8px, `aria-hidden`) ahead of the
 text, the same visual grammar as the screen tile's dirty dot: a colored
 dot means live device state, never decoration.
 
+### Status Bar
+A 2rem strip fixed to the window's bottom edge while connected, fed by the
+heartbeat's `GET /api/v1/system`: hostname + IP, WiFi network with a
+four-bar signal meter and dBm, uptime, free heap, firmware build date.
+Flat (page background, 1px divider on top, no shadow) and entirely
+neutral: signal strength is shown by bar count, not color, since none of
+these readings is one of the four states the signal colors are reserved
+for. Numbers use `.mono-num`; labels stay in the body font. The apply bar
+stacks directly above it. Below 860px wide, uptime/heap/build drop out
+before anything truncates.
+
 ## 6. Do's and Don'ts
 
 ### Do:
