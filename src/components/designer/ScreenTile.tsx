@@ -24,6 +24,7 @@ export function ScreenTile({ index, slot, selected, dirty, onSelect }: ScreenTil
       type="button"
       className={`screen-tile${selected ? " screen-tile-selected" : ""}`}
       onClick={() => onSelect(index)}
+      aria-pressed={selected}
       aria-label={`Screen ${index}: ${label}`}
       title={`Screen ${index}: ${label}`}
     >

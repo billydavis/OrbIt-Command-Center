@@ -12,7 +12,7 @@ export function ScreenGrid({ selected, onSelect }: ScreenGridProps) {
   const isDirty = useLayoutDraftStore((s) => s.isDirty);
 
   return (
-    <div className="screen-grid">
+    <div className={`screen-grid${selected !== null ? " screen-grid-has-selection" : ""}`}>
       {Array.from({ length: SCREEN_COUNT }, (_, i) => (
         <ScreenTile
           key={i}

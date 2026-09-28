@@ -264,10 +264,18 @@ any component.
 
 ### Screen Tile (signature component)
 The five round tiles are the product's visual anchor. Each is a 110px
-circle, ink background inverted from the page, with a Signal Cyan border
-when selected, an amber dirty-dot in the top-right when unapplied, and
-small de-emphasized index/control/label text stacked inside. This is the
-one place the system allows itself to be physical rather than flat-form.
+circle, ink background inverted from the page, with an amber dirty-dot in
+the top-right when unapplied, and small de-emphasized index/control/label
+text stacked inside. This is the one place the system allows itself to be
+physical rather than flat-form.
+
+Selection is an **offset ring**: a 3px Signal ring held 4px off the
+circle by a page-colored gap (box-shadow, not border), so it reads as a
+bezel around the active screen. While a screen is selected, the other
+four **step back**: their fill and label blend toward the page with
+`color-mix()` (not `opacity`, which would also dim the dirty dot), and
+return to full strength on hover or keyboard focus. Keyboard focus is a
+thinner 2px version of the same ring.
 
 ### Connection Status (signature component)
 The "Connected to `{host}`" line in the connected bar carries a small

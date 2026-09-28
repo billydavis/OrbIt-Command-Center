@@ -527,6 +527,11 @@ button.destructive:focus-visible {
   min-width: calc(110px * 5 + 1.5rem * 4);
   gap: 1.5rem;
   justify-content: flex-start;
+  /* overflow-x: auto clips on every side, and the selection ring sits 7px
+     outside each circle — pad the scroll box so the ring isn't cut off,
+     and pull it back out by the same amount so the tiles don't move. */
+  padding: 10px;
+  margin: -10px;
 }
 
 .screen-tile {
@@ -552,12 +557,59 @@ button.destructive:focus-visible {
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 6px var(--color-shadow);
-  border: 3px solid transparent;
   position: relative;
+  transition:
+    background-color 0.15s ease-out,
+    color 0.15s ease-out,
+    box-shadow 0.15s ease-out;
 }
 
+/* Selection is an offset ring: a page-colored gap pulls it off the tile's
+   edge, so it reads as a bezel around the active screen rather than a
+   thin line painted on a light circle. */
 .screen-tile-selected .screen-tile-circle {
-  border-color: var(--color-signal);
+  box-shadow:
+    0 0 0 4px var(--color-bg),
+    0 0 0 7px var(--color-signal),
+    0 2px 6px var(--color-shadow);
+}
+
+/* While one screen is selected, the other four step back: fill and label
+   blend toward the page rather than using opacity, so each tile's amber
+   dirty dot (a child) stays at full strength. Hover and keyboard focus
+   bring a tile back, which also shows it's still clickable. */
+.screen-grid-has-selection .screen-tile:not(.screen-tile-selected) .screen-tile-circle {
+  background-color: color-mix(in oklch, var(--color-tile-bg) 45%, var(--color-bg));
+  color: color-mix(in oklch, var(--color-tile-text) 70%, var(--color-bg));
+}
+
+.screen-grid-has-selection .screen-tile:not(.screen-tile-selected):hover .screen-tile-circle,
+.screen-grid-has-selection .screen-tile:not(.screen-tile-selected):focus-visible .screen-tile-circle {
+  background-color: var(--color-tile-bg);
+  color: var(--color-tile-text);
+}
+
+/* The global focus style is a border color, but tiles have no border —
+   without this, tabbing through them showed nothing. A thinner version of
+   the selection ring, so focus and selection read as related. */
+.screen-tile:focus-visible .screen-tile-circle {
+  box-shadow:
+    0 0 0 3px var(--color-bg),
+    0 0 0 5px var(--color-signal),
+    0 2px 6px var(--color-shadow);
+}
+
+.screen-tile-selected:focus-visible .screen-tile-circle {
+  box-shadow:
+    0 0 0 4px var(--color-bg),
+    0 0 0 7px var(--color-signal-active),
+    0 2px 6px var(--color-shadow);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen-tile-circle {
+    transition: none;
+  }
 }
 
 .screen-tile-control {
