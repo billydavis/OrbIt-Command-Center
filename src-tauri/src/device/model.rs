@@ -5,10 +5,8 @@ use serde::{Deserialize, Serialize};
 ///
 /// `params` is kept as raw JSON rather than a typed-per-control struct: the
 /// spec (docs/orbit-api.md) explicitly says the control enum "is expected to
-/// grow," and read-back for `analogClock`/`custom` is documented as lossy
-/// (colors come back as raw RGB565 ints, rich `custom` slots report only
-/// `elementCount`) — a strict typed shape would either reject those valid
-/// responses or silently drop data.
+/// grow," so a strict typed shape would either reject valid responses from
+/// newer firmware or silently drop data.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ScreenSlot {
     pub screen: u8,
@@ -85,8 +83,9 @@ pub enum CountdownAction {
         duration_seconds: u32,
         #[serde(skip_serializing_if = "Option::is_none")]
         label: Option<String>,
+        /// RGB565, like every other color param ("Colors" in docs/orbit-api.md).
         #[serde(skip_serializing_if = "Option::is_none")]
-        color: Option<String>,
+        color: Option<u16>,
     },
     #[serde(rename = "pause")]
     Pause,

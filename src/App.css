@@ -710,16 +710,46 @@ button.destructive:focus-visible {
   margin: 0;
 }
 
-/* Marks a color field whose current device value is a raw RGB565 int this
-   app can't resolve to a name — same --color-pending token as the unapplied
-   screen-tile dot, since both mean "don't trust what's currently shown." */
-.field-unknown-device-value select {
-  border-color: var(--color-pending);
+.color-field-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
 }
 
-.field-unknown-device-hint {
-  color: var(--color-pending);
-  opacity: 1;
+/* The native swatch, minus the padding every other input gets — here it
+   would shrink the one thing this input exists to show. */
+.color-field input[type="color"] {
+  width: 3rem;
+  height: 2.25rem;
+  padding: 0.2rem;
+  cursor: pointer;
+}
+
+.color-field-hex {
+  font-size: var(--text-base);
+  font-weight: var(--weight-regular);
+}
+
+.color-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/* The divider-colored border keeps black and white presets visible against
+   either theme's surface. */
+.color-preset {
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-divider);
+  box-shadow: none;
+}
+
+.color-preset[aria-pressed="true"] {
+  outline: 2px solid var(--color-signal);
+  outline-offset: 2px;
 }
 
 .json-editor {

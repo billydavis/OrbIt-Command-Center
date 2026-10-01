@@ -288,7 +288,7 @@ mod tests {
             .and(path("/orbit/api/v1/screens/1"))
             .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
                 "screen": 1, "control": "countdown",
-                "params": { "label": "Focus", "durationSeconds": 900, "color": 65535, "state": "running", "remainingSeconds": 900 },
+                "params": { "label": "Focus", "durationSeconds": 900, "color": 2047, "state": "running", "remainingSeconds": 900 },
                 "updatedAt": 1
             })))
             .mount(&server)
@@ -301,7 +301,7 @@ mod tests {
                 CountdownAction::Set {
                     duration_seconds: 900,
                     label: Some("Focus".into()),
-                    color: Some("cyan".into()),
+                    color: Some(2047),
                 },
             )
             .await

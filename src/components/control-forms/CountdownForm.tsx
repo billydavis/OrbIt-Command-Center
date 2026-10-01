@@ -7,6 +7,7 @@ import { countdownSetSchema } from "../../lib/controlSchemas";
 import { describeOrbitError, isConnectionLost, type ScreenSlot } from "../../lib/types";
 import { useDeviceStore } from "../../stores/deviceStore";
 import { ColorInput } from "../shared/ColorInput";
+import { COLORS, COLORS_UNSUPPORTED_MESSAGE, colorsNotApplied } from "../../lib/rgb565";
 
 // See TimeForm.tsx for why this uses the schema's input type.
 type CountdownSetFormValues = z.input<typeof countdownSetSchema>;
@@ -39,6 +40,9 @@ export function CountdownForm({ screen, liveSlot, onApplied }: CountdownFormProp
     try {
       const slot = await callCountdownAction(screen, action);
       onApplied(slot);
+      if (colorsNotApplied({ control: "countdown", params: action }, slot)) {
+        setError(COLORS_UNSUPPORTED_MESSAGE);
+      }
     } catch (err) {
       const message = describeOrbitError(err);
       setError(message);
@@ -97,9 +101,9 @@ function CountdownSetForm({
   error: string | null;
   onStart: (action: Parameters<typeof callCountdownAction>[1]) => void;
 }) {
-  const { register, handleSubmit, watch } = useForm<CountdownSetFormValues>({
+  const { register, handleSubmit, setValue, watch } = useForm<CountdownSetFormValues>({
     resolver: zodResolver(countdownSetSchema),
-    defaultValues: { durationSeconds: 300, label: "", color: "cyan" },
+    defaultValues: { durationSeconds: 300, label: "", color: COLORS.cyan },
   });
 
   return (
@@ -110,7 +114,7 @@ function CountdownSetForm({
           action: "set",
           durationSeconds: Number(values.durationSeconds),
           label: values.label || undefined,
-          color: values.color || undefined,
+          color: values.color,
         }),
       )}
     >
@@ -125,9 +129,8 @@ function CountdownSetForm({
       <ColorInput
         id="countdown-color"
         label="Color"
-        value={watch("color") ?? ""}
-        onChange={(v) => register("color").onChange({ target: { name: "color", value: v } })}
-        placeholder="cyan"
+        value={watch("color") ?? COLORS.cyan}
+        onChange={(v) => setValue("color", v)}
       />
       <button type="submit" disabled={pending}>
         Start Countdown

@@ -115,7 +115,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"control\": \"analogClock\",\n  \"params\": {\n    \"background\": \"black\",\n    \"tickColor\": \"white\",\n    \"hourColor\": \"white\",\n    \"minuteColor\": \"white\",\n    \"secondColor\": \"red\"\n  }\n}",
+              "raw": "{\n  \"control\": \"analogClock\",\n  \"params\": {\n    \"background\": 0,\n    \"tickColor\": 65535,\n    \"hourColor\": 65535,\n    \"minuteColor\": 65535,\n    \"secondColor\": 63488\n  }\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -125,7 +125,7 @@
               "path": ["orbit", "api", "v1", "screens", ":screen"],
               "variable": [{ "key": "screen", "value": "0" }]
             },
-            "description": "All params are optional color names (parsed via Utils::stringToColor()). Defaults: background=black, tickColor/hourColor/minuteColor=white, secondColor=red. Note: GET reports colors back as raw RGB565 ints, not names."
+            "description": "All params are optional colors: RGB565 integers (0-65535), the same form GET reports. Color names (e.g. \"cyan\") are also accepted. Defaults: background=black (0), tickColor/hourColor/minuteColor=white (65535), secondColor=red (63488). An invalid color is a 400."
           },
           "response": []
         },
@@ -138,7 +138,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"control\": \"gauge\",\n  \"params\": {\n    \"label\": \"CPU\",\n    \"value\": 42,\n    \"min\": 0,\n    \"max\": 100,\n    \"color\": \"cyan\",\n    \"trackColor\": \"darkgrey\",\n    \"style\": \"ring\"\n  }\n}",
+              "raw": "{\n  \"control\": \"gauge\",\n  \"params\": {\n    \"label\": \"CPU\",\n    \"value\": 42,\n    \"min\": 0,\n    \"max\": 100,\n    \"color\": 2047,\n    \"trackColor\": 31727,\n    \"style\": \"ring\"\n  }\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -148,7 +148,7 @@
               "path": ["orbit", "api", "v1", "screens", ":screen"],
               "variable": [{ "key": "screen", "value": "0" }]
             },
-            "description": "All params optional. value/min/max default 0/0/100. color/trackColor default cyan/darkgrey. style is one of \"ring\" (default, full 360°), \"speedometer\" (270° sweep), or \"instrument\" (300° sweep with tick marks)."
+            "description": "All params optional. value/min/max default 0/0/100. color/trackColor are RGB565 integers (color names also accepted), default cyan (2047)/darkgrey (31727). style is one of \"ring\" (default, full 360°), \"speedometer\" (270° sweep), or \"instrument\" (300° sweep with tick marks)."
           },
           "response": []
         },
@@ -328,7 +328,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"control\": \"countdown\",\n  \"params\": { \"action\": \"set\", \"durationSeconds\": 900, \"label\": \"Focus\", \"color\": \"cyan\" }\n}",
+              "raw": "{\n  \"control\": \"countdown\",\n  \"params\": { \"action\": \"set\", \"durationSeconds\": 900, \"label\": \"Focus\", \"color\": 2047 }\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -338,7 +338,7 @@
               "path": ["orbit", "api", "v1", "screens", ":screen"],
               "variable": [{ "key": "screen", "value": "0" }]
             },
-            "description": "durationSeconds is required and must be positive. label/color are optional. Configures and immediately starts a fresh countdown. The first `set` on a screen also snapshots whatever control was there before, restored on `stop`."
+            "description": "durationSeconds is required and must be positive. label/color are optional; color is an RGB565 integer (color names also accepted), default cyan (2047). Configures and immediately starts a fresh countdown. The first `set` on a screen also snapshots whatever control was there before, restored on `stop`."
           },
           "response": []
         },

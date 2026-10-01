@@ -9,6 +9,7 @@ import { ThemeControl } from "./components/theme/ThemeControl";
 import { StatusBar } from "./components/status/StatusBar";
 import { useApplyTheme } from "./hooks/useApplyTheme";
 import { applyLayout, getScreens } from "./lib/tauriCommands";
+import { COLORS_UNSUPPORTED_MESSAGE, colorsNotApplied } from "./lib/rgb565";
 import {
   describeOrbitError,
   isConnectionLost,
@@ -42,6 +43,8 @@ function App() {
   const [applyState, setApplyState] = useState<"idle" | "applying" | "error">("idle");
   const [applyError, setApplyError] = useState<string | null>(null);
   const [backgroundError, setBackgroundError] = useState<string | null>(null);
+  // An apply the device accepted but didn't fully honor (see colorsNotApplied).
+  const [applyWarning, setApplyWarning] = useState<string | null>(null);
   // dirtyCount hits 0 the instant a successful apply resyncs draft to live,
   // which is also the apply-bar's render condition — so success and "the
   // bar disappears" happen in the same tick, with no window to show
@@ -157,6 +160,11 @@ function App() {
       const applied = await applyLayout(toApply);
       applied.forEach(patchLive);
       setApplyState("idle");
+      const colorsIgnored = applied.some((slot) => {
+        const sent = toApply.find((s) => s.screen === slot.screen);
+        return sent !== undefined && colorsNotApplied(sent, slot);
+      });
+      setApplyWarning(colorsIgnored ? COLORS_UNSUPPORTED_MESSAGE : null);
       setApplySuccessMessage(
         `Applied ${applied.length} screen${applied.length === 1 ? "" : "s"} to device`,
       );
@@ -204,6 +212,15 @@ function App() {
           <p className="connection-settings-error background-error">
             Background push: {backgroundError}
             <button type="button" onClick={() => setBackgroundError(null)}>
+              Dismiss
+            </button>
+          </p>
+        )}
+
+        {applyWarning && (
+          <p className="connection-settings-error background-error" role="alert">
+            {applyWarning}
+            <button type="button" onClick={() => setApplyWarning(null)}>
               Dismiss
             </button>
           </p>

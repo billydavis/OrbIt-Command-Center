@@ -1,7 +1,7 @@
 // Mirrors src-tauri/src/device/model.rs::ScreenSlot. `params` is kept as
 // `unknown` here for the same reason it's `serde_json::Value` on the Rust
-// side: the control enum is documented as "expected to grow," and read-back
-// for analogClock/custom is lossy — a strict shape would reject valid data.
+// side: the control enum is documented as "expected to grow," so a strict
+// shape would reject valid data from newer firmware.
 export interface ScreenSlot {
   screen: number;
   control: string;
@@ -38,7 +38,7 @@ export type ControlType = (typeof CONTROL_TYPES)[number];
 export const SCREEN_COUNT = 5;
 
 export type CountdownAction =
-  | { action: "set"; durationSeconds: number; label?: string; color?: string }
+  | { action: "set"; durationSeconds: number; label?: string; color?: number }
   | { action: "pause" }
   | { action: "resume" }
   | { action: "restart" }

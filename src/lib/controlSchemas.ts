@@ -2,9 +2,7 @@ import { z } from "zod";
 
 // One zod schema per control's params shape, matching docs/orbit-api.md's
 // control table. These validate what the *form* produces before it's sent
-// as an outgoing POST — they are not used to validate GET read-back, which
-// can be lossy (analogClock colors as raw ints, custom as elementCount) per
-// the spec's own caveats.
+// as an outgoing POST — they are not used to validate GET read-back.
 
 export const timeParamsSchema = z.object({
   showDate: z.boolean().default(false),
@@ -13,14 +11,16 @@ export const timeParamsSchema = z.object({
 });
 export type TimeParams = z.infer<typeof timeParamsSchema>;
 
-// Color fields are names (e.g. "cyan", "white"), parsed device-side via
-// Utils::stringToColor() — same convention analogClock/gauge/countdown use.
+// Colors are RGB565 integers, the same form the device reports them in (see
+// lib/rgb565.ts) — analogClock, gauge and countdown all use this.
+const rgb565Schema = z.number().int().min(0).max(0xffff);
+
 export const analogClockParamsSchema = z.object({
-  background: z.string().optional(),
-  tickColor: z.string().optional(),
-  hourColor: z.string().optional(),
-  minuteColor: z.string().optional(),
-  secondColor: z.string().optional(),
+  background: rgb565Schema.optional(),
+  tickColor: rgb565Schema.optional(),
+  hourColor: rgb565Schema.optional(),
+  minuteColor: rgb565Schema.optional(),
+  secondColor: rgb565Schema.optional(),
 });
 export type AnalogClockParams = z.infer<typeof analogClockParamsSchema>;
 
@@ -29,8 +29,8 @@ export const gaugeParamsSchema = z.object({
   value: z.coerce.number().default(0),
   min: z.coerce.number().default(0),
   max: z.coerce.number().default(100),
-  color: z.string().optional(),
-  trackColor: z.string().optional(),
+  color: rgb565Schema.optional(),
+  trackColor: rgb565Schema.optional(),
   style: z.enum(["ring", "speedometer", "instrument"]).default("ring"),
 });
 export type GaugeParams = z.infer<typeof gaugeParamsSchema>;
@@ -62,6 +62,6 @@ export type CustomParams = z.infer<typeof customParamsSchema>;
 export const countdownSetSchema = z.object({
   durationSeconds: z.coerce.number().int().positive(),
   label: z.string().optional(),
-  color: z.string().optional(),
+  color: rgb565Schema.optional(),
 });
 export type CountdownSetParams = z.infer<typeof countdownSetSchema>;
