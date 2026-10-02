@@ -8,7 +8,7 @@ import { ProfilesDrawer } from "./components/profiles/ProfilesDrawer";
 import { ThemeControl } from "./components/theme/ThemeControl";
 import { StatusBar } from "./components/status/StatusBar";
 import { useApplyTheme } from "./hooks/useApplyTheme";
-import { applyLayout, getScreens } from "./lib/tauriCommands";
+import { applyLayout, getScreens, setShowInTaskbar } from "./lib/tauriCommands";
 import { COLORS_UNSUPPORTED_MESSAGE, colorsNotApplied } from "./lib/rgb565";
 import {
   describeOrbitError,
@@ -20,6 +20,7 @@ import {
 } from "./lib/types";
 import { useLayoutDraftStore } from "./stores/layoutDraftStore";
 import { useDeviceStore } from "./stores/deviceStore";
+import { useWindowStore } from "./stores/windowStore";
 import "./App.css";
 
 const BACKGROUND_ERROR_AUTO_DISMISS_MS = 10_000;
@@ -35,6 +36,11 @@ function App() {
   const markLost = useDeviceStore((s) => s.markLost);
   const setSystem = useDeviceStore((s) => s.setSystem);
   const setSystemUnsupported = useDeviceStore((s) => s.setSystemUnsupported);
+
+  const showInTaskbar = useWindowStore((s) => s.showInTaskbar);
+  useEffect(() => {
+    void setShowInTaskbar(showInTaskbar);
+  }, [showInTaskbar]);
 
   const [selected, setSelected] = useState<number | null>(null);
   const [profilesOpen, setProfilesOpen] = useState(false);

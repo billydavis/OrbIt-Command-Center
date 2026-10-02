@@ -68,3 +68,8 @@ export function applyProfile(id: string): Promise<ScreenSlot[]> {
 export function gpuMonitoringAvailable(): Promise<boolean> {
   return invoke("gpu_monitoring_available");
 }
+
+/** Windows only (a no-op elsewhere): taskbar button, or tray icon alone. */
+export function setShowInTaskbar(show: boolean): Promise<void> {
+  return invoke("set_show_in_taskbar", { show });
+}

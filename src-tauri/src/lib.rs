@@ -12,6 +12,15 @@ use state::AppState;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Must be the first plugin registered. Closing the window only hides
+        // it to the tray, so a second launch would otherwise leave two
+        // copies running, and the hidden one keeps pushing sysMonitor values
+        // from its own stale idea of the layout, undoing whatever the
+        // visible one just applied. A second launch brings the existing
+        // window back instead.
+        .plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
+            tray::show_main_window(app);
+        }))
         .plugin(tauri_plugin_opener::init())
         .manage(AppState::default())
         .setup(|app| {
@@ -36,6 +45,7 @@ pub fn run() {
             commands::delete_profile,
             commands::apply_profile,
             commands::gpu_monitoring_available,
+            commands::set_show_in_taskbar,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

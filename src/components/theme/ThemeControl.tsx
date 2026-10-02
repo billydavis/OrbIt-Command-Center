@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useThemeStore } from "../../stores/themeStore";
+import { useWindowStore } from "../../stores/windowStore";
 import { ACCENT_SWATCHES, type AccentKey, type ThemeMode } from "../../lib/theme";
 import { ControlIcon } from "../../lib/controlIcons";
 
@@ -11,6 +12,10 @@ const MODES: { key: ThemeMode; label: string }[] = [
 
 const ACCENTS: AccentKey[] = ["cyan", "teal", "violet", "amber"];
 
+// The taskbar setting only does anything on Windows (see
+// tray::set_show_in_taskbar), so it's only offered there.
+const IS_WINDOWS = navigator.userAgent.includes("Windows");
+
 // Always-available appearance control — rendered outside the connected/
 // disconnected split in App.tsx, since theme shouldn't depend on having a
 // device connected. Explicit mode overrides the OS preference; accent only
@@ -21,6 +26,8 @@ export function ThemeControl() {
   const accent = useThemeStore((s) => s.accent);
   const setMode = useThemeStore((s) => s.setMode);
   const setAccent = useThemeStore((s) => s.setAccent);
+  const showInTaskbar = useWindowStore((s) => s.showInTaskbar);
+  const setShowInTaskbar = useWindowStore((s) => s.setShowInTaskbar);
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -97,6 +104,24 @@ export function ThemeControl() {
               ))}
             </div>
           </div>
+          {IS_WINDOWS && (
+            <div className="theme-control-section">
+              <span className="theme-control-section-label">Window</span>
+              <label className="field-checkbox">
+                <input
+                  type="checkbox"
+                  checked={showInTaskbar}
+                  onChange={(e) => setShowInTaskbar(e.currentTarget.checked)}
+                />
+                Show in taskbar
+              </label>
+              <p className="field-hint">
+                {showInTaskbar
+                  ? "The app has a taskbar button while its window is open."
+                  : "The app lives in the tray. Click its tray icon to open the window."}
+              </p>
+            </div>
+          )}
           <div className="theme-preview">
             <div className="theme-preview-tile">
               <ControlIcon control="weather" />

@@ -1,3 +1,4 @@
+use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
 
 use crate::device::{OrbitClient, ScreenSlot};
@@ -15,6 +16,19 @@ pub struct AppState {
     /// polling the device with an extra GET every tick — commands.rs keeps
     /// this in sync as a side effect of every successful device call.
     pub last_layout: Mutex<Option<Vec<ScreenSlot>>>,
+
+    /// Held across every write to the device together with the
+    /// `last_layout` update that follows it. Without it the sysMonitor loop
+    /// can decide to push to a screen, have the user's Apply change that
+    /// screen to something else, and then land its push anyway, putting
+    /// sysMonitor back on the device and in `last_layout`, where it then
+    /// stays. An async mutex because it's held across the request.
+    pub device_writes: tokio::sync::Mutex<()>,
+
+    /// Windows only: the app has no taskbar button, just its tray icon (see
+    /// tray::set_show_in_taskbar). Read by the window's event handler so
+    /// minimizing sends the window to the tray too.
+    pub tray_only: AtomicBool,
 }
 
 impl AppState {

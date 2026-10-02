@@ -52,6 +52,7 @@ pub async fn apply_layout(
     slots: Vec<BulkScreenSlotInput>,
     state: State<'_, AppState>,
 ) -> Result<Vec<ScreenSlot>, OrbitError> {
+    let _writing = state.device_writes.lock().await;
     let applied =
         with_device(&state, |client| async move { client.post_screens_bulk(slots).await }).await?;
     for slot in &applied {
@@ -66,6 +67,7 @@ pub async fn apply_screen(
     slot: ScreenSlotInput,
     state: State<'_, AppState>,
 ) -> Result<ScreenSlot, OrbitError> {
+    let _writing = state.device_writes.lock().await;
     let applied =
         with_device(&state, |client| async move { client.post_screen(n, slot).await }).await?;
     state.patch_layout_slot(applied.clone());
@@ -74,6 +76,7 @@ pub async fn apply_screen(
 
 #[tauri::command]
 pub async fn refresh_ticker(n: u8, state: State<'_, AppState>) -> Result<ScreenSlot, OrbitError> {
+    let _writing = state.device_writes.lock().await;
     let updated =
         with_device(&state, |client| async move { client.refresh_ticker(n).await }).await?;
     state.patch_layout_slot(updated.clone());
@@ -86,6 +89,7 @@ pub async fn countdown_action(
     action: CountdownAction,
     state: State<'_, AppState>,
 ) -> Result<ScreenSlot, OrbitError> {
+    let _writing = state.device_writes.lock().await;
     let updated = with_device(&state, |client| async move { client.countdown_action(n, action).await })
         .await?;
     state.patch_layout_slot(updated.clone());
@@ -118,12 +122,20 @@ pub async fn apply_profile(
     state: State<'_, AppState>,
 ) -> Result<Vec<ScreenSlot>, OrbitError> {
     let profile = profile_store::get(&app, &id).map_err(|e| OrbitError::Other(e.to_string()))?;
+    let _writing = state.device_writes.lock().await;
     let applied = with_device(&state, |client| async move { client.post_screens_bulk(profile.slots).await })
         .await?;
     for slot in &applied {
         state.patch_layout_slot(slot.clone());
     }
     Ok(applied)
+}
+
+/// The frontend owns this preference (it's saved with the other settings in
+/// the webview) and calls this at startup and whenever it changes.
+#[tauri::command]
+pub fn set_show_in_taskbar(app: AppHandle, show: bool) {
+    crate::tray::set_show_in_taskbar(&app, show);
 }
 
 #[tauri::command]

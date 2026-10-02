@@ -39,30 +39,12 @@ async fn run_tick(app: &AppHandle, collector: &mut Collector) {
     // shows) is captured here too — POST replaces a slot's entire params,
     // so if this tick's push didn't re-send it, the user's choice would get
     // silently clobbered back to "auto" every ~5s.
-    //
-    // An empty string is treated the same as "not set" (mapped to None, so
-    // it's simply omitted from the next push) rather than forwarded as-is:
-    // the device will happily echo back a stale/legacy `"center": ""` via
-    // GET, but rejects that same value with a 400 if POSTed — "" isn't one
-    // of the documented center values (cpu/cpuTemp/gpu/gpuTemp/ram/ssdTemp/
-    // none), so blindly round-tripping whatever was last seen breaks the
-    // very first tick after connecting to a device with that legacy state.
-    let sysmonitor_screens: Vec<(u8, Option<String>)> = {
+    let sysmonitor_screens: Vec<u8> = {
         let layout = state.last_layout.lock().expect("layout mutex poisoned");
         match layout.as_ref() {
-            Some(screens) => screens
-                .iter()
-                .filter(|s| s.control == "sysMonitor")
-                .map(|s| {
-                    let center = s
-                        .params
-                        .get("center")
-                        .and_then(|v| v.as_str())
-                        .filter(|s| !s.is_empty())
-                        .map(|s| s.to_string());
-                    (s.screen, center)
-                })
-                .collect(),
+            Some(screens) => {
+                screens.iter().filter(|s| s.control == "sysMonitor").map(|s| s.screen).collect()
+            }
             None => return,
         }
     };
@@ -72,13 +54,42 @@ async fn run_tick(app: &AppHandle, collector: &mut Collector) {
 
     let base_params = build_base_params(collector).await;
 
-    for (screen, center) in sysmonitor_screens {
+    for screen in sysmonitor_screens {
+        // Sampling above takes a while (the GPU reading shells out), and a
+        // push is a full write of the slot, so check again, under the write
+        // lock, that this screen is still sysMonitor. Otherwise an Apply
+        // that changed it in the meantime would be overwritten here and the
+        // screen would flip back to sysMonitor for good.
+        let _writing = state.device_writes.lock().await;
+        let Some(center) = sysmonitor_center(&state, screen) else { continue };
         let mut params = base_params.clone();
         if let Some(center_value) = center {
             params["center"] = serde_json::Value::String(center_value);
         }
         push_to_screen(app, &state, &client, screen, params).await;
     }
+}
+
+/// `None` if `screen` isn't (or is no longer) a sysMonitor; otherwise its
+/// `center` choice, if it has one.
+///
+/// An empty string is treated the same as "not set" (so it's simply omitted
+/// from the next push) rather than forwarded as-is: the device will happily
+/// echo back a stale/legacy `"center": ""` via GET, but rejects that same
+/// value with a 400 if POSTed — "" isn't one of the documented center values
+/// (cpu/cpuTemp/gpu/gpuTemp/ram/ssdTemp/none), so blindly round-tripping
+/// whatever was last seen breaks the very first tick after connecting to a
+/// device with that legacy state.
+fn sysmonitor_center(state: &AppState, screen: u8) -> Option<Option<String>> {
+    let layout = state.last_layout.lock().expect("layout mutex poisoned");
+    let slot = layout.as_ref()?.iter().find(|s| s.screen == screen && s.control == "sysMonitor")?;
+    Some(
+        slot.params
+            .get("center")
+            .and_then(|v| v.as_str())
+            .filter(|s| !s.is_empty())
+            .map(|s| s.to_string()),
+    )
 }
 
 async fn build_base_params(collector: &mut Collector) -> serde_json::Value {
