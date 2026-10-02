@@ -892,9 +892,23 @@ button.destructive:focus-visible {
   opacity: 0.55;
 }
 
+/* The drawer is too narrow for the question and both buttons to sit beside
+   the profile's name, so the confirm step drops to its own row under it:
+   the question on one line, the buttons right-aligned below. */
+.profile-card:has(.profile-card-confirm-delete) {
+  flex-wrap: wrap;
+}
+
 .profile-card-confirm-delete {
+  flex: 1 0 100%;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.6rem;
+}
+
+.profile-card-confirm-delete .field-hint {
+  flex: 1 0 100%;
 }
 
 /* Dark tokens apply either because the OS prefers dark and the user hasn't
