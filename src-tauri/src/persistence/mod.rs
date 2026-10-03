@@ -1,5 +1,5 @@
 mod profiles;
-mod store;
+pub mod store;
 
 pub use profiles::{Profile, ProfileError};
 pub mod profile_store {

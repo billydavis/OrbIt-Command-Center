@@ -74,6 +74,7 @@ The device has 5 physical round screens, each independently assigned a
 | Profiles | Save the current 5-screen layout under a name, stored locally (`profiles.json` in the app's data dir), and re-apply it later in one click |
 | Countdown | Action-driven (set/pause/resume/restart/stop) rather than a saved config, so it gets its own always-live panel instead of going through Apply Layout |
 | sysMonitor loop | A background task (Rust, ~5s interval) reads local CPU/RAM via `sysinfo` and GPU stats via `nvidia-smi` (best-effort, NVIDIA-only) and pushes them to whichever screen is assigned `sysMonitor` — keeps running from the system tray even with the window closed |
+| Feeds | Named live numbers a `gauge` can follow instead of a typed-in value: the CPU/RAM/GPU readings one by one (`sys.cpu`, ...), plus anything another app on this PC posts to `http://127.0.0.1:47800/feeds/{name}` — see [`docs/feeds-api.md`](docs/feeds-api.md). The app pushes each bound screen its feed's latest value, at most once a second |
 | Reconnect handling | Any failed request that means the device dropped off the network (not just a rejected one) drops the app back to the connect screen instead of silently going stale |
 
 All state the device itself needs to keep across reboots lives on the
@@ -88,6 +89,9 @@ of truth.
   the documented request/response shapes
 - `src-tauri/src/sysmonitor/` — the background push loop (`task.rs`), CPU/RAM
   collection (`collector.rs`), and best-effort GPU stats (`gpu.rs`)
+- `src-tauri/src/feeds/` — the feed table (`registry.rs`), the local ingest
+  endpoint (`server.rs`), screen-to-feed bindings (`bindings.rs`), and the
+  loop that pushes bound screens their values (`pusher.rs`)
 - `src-tauri/src/persistence/` — local profile storage (`profiles.rs`),
   atomic JSON read/write (`store.rs`)
 - `src-tauri/src/tray/` — tray icon, menu, and close-to-tray window behavior
@@ -100,7 +104,12 @@ of truth.
 - `src/components/profiles/` — save/list/apply/delete UI for local profiles
 - `src/stores/` — Zustand stores: `deviceStore` (connection state),
   `layoutDraftStore` (live vs. unsaved-draft per screen), `profilesStore`
+- `src/components/feeds/` — the Feeds drawer
 - `docs/orbit-api.md` — the REST API spec this app implements against
+- `docs/feeds-api.md` — the local endpoint other apps push feeds to
+- `examples/` — example feed publishers: `random-feed.ps1` (a number that
+  drifts up and down; the one to copy from) and `fps-feed.ps1` (the
+  foreground program's frame rate, via PresentMon)
 
 ## Roadmap
 

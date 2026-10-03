@@ -619,6 +619,23 @@ button.destructive:focus-visible {
   padding: 0 0.4rem;
 }
 
+/* The feed a bound screen follows, under its control name. */
+.screen-tile-feed {
+  position: absolute;
+  top: calc(50% + 0.9rem);
+  left: 0;
+  right: 0;
+  padding: 0 0.9rem;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.2;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.75;
+}
+
 .screen-tile-dirty-dot {
   position: absolute;
   top: 10px;
@@ -842,6 +859,109 @@ button.destructive:focus-visible {
 
 .profiles-section {
   width: 100%;
+}
+
+/* The Feeds drawer reuses the Profiles drawer's shell; it only needs more
+   width, for a table rather than a stack of cards. */
+.feeds-drawer {
+  width: min(520px, 100vw);
+}
+
+.feeds-intro {
+  margin: 0 0 0.75rem 0;
+}
+
+.feeds-endpoint {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border: 1px solid var(--color-divider);
+  border-radius: 8px;
+  background-color: var(--color-surface-tint);
+}
+
+.feeds-endpoint-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.feeds-endpoint-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--color-live);
+}
+
+.feeds-example {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  user-select: all;
+}
+
+.feeds-copy,
+.feeds-delete {
+  font-size: var(--text-sm);
+  padding: 0.3em 0.7em;
+}
+
+.feeds-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.feeds-table th,
+.feeds-table td {
+  padding: 0.4rem 0.5rem;
+  text-align: left;
+  vertical-align: baseline;
+  border-bottom: 1px solid var(--color-divider);
+}
+
+.feeds-table thead th {
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.feeds-table .feeds-num {
+  text-align: right;
+}
+
+.feeds-id {
+  font-family: var(--font-mono);
+  font-weight: var(--weight-medium);
+  overflow-wrap: anywhere;
+}
+
+/* The publisher's own name for the feed, under its id. */
+.feeds-label {
+  display: block;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-regular);
+  opacity: 0.7;
+}
+
+.feeds-actions {
+  text-align: right;
+}
+
+/* A feed nobody has published for a while, or one a screen is waiting on:
+   stepped back so a stopped pusher doesn't read as a steady value. */
+.feeds-row-stale th,
+.feeds-row-stale td {
+  color: color-mix(in oklch, var(--color-text) 55%, var(--color-surface));
 }
 
 .profiles-section-hint {

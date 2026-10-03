@@ -1,7 +1,8 @@
 use std::sync::atomic::AtomicBool;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use crate::device::{OrbitClient, ScreenSlot};
+use crate::feeds::{Bindings, FeedRegistry, FeedServerStatus};
 
 /// Shared app state. `device` is `None` until `connect_device` succeeds.
 /// A `Mutex` is enough here — writes are infrequent (connect, apply,
@@ -24,6 +25,16 @@ pub struct AppState {
     /// sysMonitor back on the device and in `last_layout`, where it then
     /// stays. An async mutex because it's held across the request.
     pub device_writes: tokio::sync::Mutex<()>,
+
+    /// Every feed the app knows about (feeds/registry.rs). An `Arc` because
+    /// the ingest endpoint's router holds it too.
+    pub feeds: Arc<FeedRegistry>,
+
+    /// Which screen params follow which feeds (feeds/bindings.rs).
+    pub bindings: Bindings,
+
+    /// Whether the feed ingest endpoint came up, for the Feeds panel.
+    pub feed_server: Mutex<FeedServerStatus>,
 
     /// Windows only: the app has no taskbar button, just its tray icon (see
     /// tray::set_show_in_taskbar). Read by the window's event handler so

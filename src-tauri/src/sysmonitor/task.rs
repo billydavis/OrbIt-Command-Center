@@ -3,12 +3,20 @@ use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager};
 use tokio::time;
 
-use super::collector::Collector;
-use super::gpu;
+use super::collector::{Collector, CpuRamSample};
+use super::gpu::{self, GpuSample};
 use crate::device::{OrbitClient, ScreenSlotInput};
+use crate::feeds::FeedHints;
 use crate::state::AppState;
 
 const TICK_INTERVAL: Duration = Duration::from_secs(5);
+
+// The same readings a sysMonitor screen gets, published one by one as feeds
+// (feeds/registry.rs) so any of them can drive a screen of its own.
+const FEED_CPU: &str = "sys.cpu";
+const FEED_RAM: &str = "sys.ram";
+const FEED_GPU: &str = "sys.gpu";
+const FEED_GPU_TEMP: &str = "sys.gpuTemp";
 
 /// Spawns the background loop as a Tokio task. Runs for the lifetime of the
 /// app (there's no explicit stop — every tick is already cheap/idle when
@@ -17,6 +25,14 @@ const TICK_INTERVAL: Duration = Duration::from_secs(5);
 pub fn spawn(app: AppHandle) {
     tauri::async_runtime::spawn(async move {
         let mut collector = Collector::new();
+
+        // One GPU reading up front, so the GPU feeds are there to be picked
+        // on machines that have one — after this they're only sampled while
+        // something is actually showing them (see run_tick).
+        if let Some(sample) = gpu::sample().await {
+            publish_gpu(&app.state::<AppState>(), &sample);
+        }
+
         let mut interval = time::interval(TICK_INTERVAL);
         loop {
             interval.tick().await;
@@ -27,6 +43,11 @@ pub fn spawn(app: AppHandle) {
 
 async fn run_tick(app: &AppHandle, collector: &mut Collector) {
     let state = app.state::<AppState>();
+
+    // CPU/RAM are cheap to read, so their feeds stay live whether or not a
+    // device is connected or anything is showing them.
+    let cpu_ram = collector.sample();
+    publish_cpu_ram(&state, &cpu_ram);
 
     let client = { state.device.lock().expect("device state mutex poisoned").clone() };
     let Some(client) = client else { return };
@@ -48,11 +69,21 @@ async fn run_tick(app: &AppHandle, collector: &mut Collector) {
             None => return,
         }
     };
+
+    // The GPU reading shells out, so it's skipped unless a screen wants it:
+    // a sysMonitor, or one bound to a GPU feed.
+    let gpu_wanted = !sysmonitor_screens.is_empty()
+        || state.bindings.references_any(&[FEED_GPU, FEED_GPU_TEMP]);
+    let gpu = if gpu_wanted { gpu::sample().await } else { None };
+    if let Some(sample) = &gpu {
+        publish_gpu(&state, sample);
+    }
+
     if sysmonitor_screens.is_empty() {
         return;
     }
 
-    let base_params = build_base_params(collector).await;
+    let base_params = build_base_params(&cpu_ram, gpu.as_ref());
 
     for screen in sysmonitor_screens {
         // Sampling above takes a while (the GPU reading shells out), and a
@@ -68,6 +99,26 @@ async fn run_tick(app: &AppHandle, collector: &mut Collector) {
         }
         push_to_screen(app, &state, &client, screen, params).await;
     }
+}
+
+fn publish_cpu_ram(state: &AppState, sample: &CpuRamSample) {
+    state.feeds.publish_builtin(FEED_CPU, sample.cpu_percent.round() as f64, percent_hints("CPU"));
+    state.feeds.publish_builtin(FEED_RAM, sample.ram_percent.round() as f64, percent_hints("RAM"));
+}
+
+fn publish_gpu(state: &AppState, sample: &GpuSample) {
+    state.feeds.publish_builtin(FEED_GPU, sample.gpu_percent.round() as f64, percent_hints("GPU"));
+    // Not 0-100: the device's gauge puts a "%" after the value for exactly
+    // that range, which would be wrong on a temperature.
+    state.feeds.publish_builtin(
+        FEED_GPU_TEMP,
+        sample.gpu_temp_c.round() as f64,
+        FeedHints { label: Some("GPU C".to_string()), min: Some(0.0), max: Some(110.0) },
+    );
+}
+
+fn percent_hints(label: &str) -> FeedHints {
+    FeedHints { label: Some(label.to_string()), min: Some(0.0), max: Some(100.0) }
 }
 
 /// `None` if `screen` isn't (or is no longer) a sysMonitor; otherwise its
@@ -92,8 +143,7 @@ fn sysmonitor_center(state: &AppState, screen: u8) -> Option<Option<String>> {
     )
 }
 
-async fn build_base_params(collector: &mut Collector) -> serde_json::Value {
-    let cpu_ram = collector.sample();
+fn build_base_params(cpu_ram: &CpuRamSample, gpu: Option<&GpuSample>) -> serde_json::Value {
     let mut params = serde_json::json!({
         "cpu": cpu_ram.cpu_percent.round(),
         "ram": cpu_ram.ram_percent.round(),
@@ -103,7 +153,7 @@ async fn build_base_params(collector: &mut Collector) -> serde_json::Value {
     // Best-effort: GPU fields are simply omitted (not zeroed) when
     // unavailable, matching the API's "all params optional, default 0" —
     // an omitted field reads differently from an explicit misleading 0%.
-    if let Some(g) = gpu::sample().await {
+    if let Some(g) = gpu {
         params["gpu"] = serde_json::json!(g.gpu_percent.round());
         params["gpuTemp"] = serde_json::json!(g.gpu_temp_c.round());
     }

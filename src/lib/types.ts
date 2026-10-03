@@ -115,6 +115,29 @@ export function isConnectionLost(err: unknown): boolean {
   return !!e && typeof e === "object" && "kind" in e && (e.kind === "Unreachable" || e.kind === "Timeout");
 }
 
+/**
+ * A named live number (src-tauri/src/feeds/registry.rs::Feed) — one of the
+ * app's own sysMonitor readings, or pushed by another app on this PC.
+ * `label`/`min`/`max` are the publisher's suggestions for showing it.
+ */
+export interface Feed {
+  id: string;
+  value: number;
+  label?: string;
+  min?: number;
+  max?: number;
+  source: "builtin" | "external";
+  /** Wall-clock milliseconds since the epoch of the last publish. */
+  updatedAt: number;
+}
+
+/** Mirrors src-tauri/src/feeds/server.rs::FeedServerStatus. */
+export interface FeedServerStatus {
+  port: number;
+  listening: boolean;
+  error: string | null;
+}
+
 // Mirrors src-tauri/src/persistence/profiles.rs::Profile.
 export interface Profile {
   id: string;

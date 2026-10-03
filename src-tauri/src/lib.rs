@@ -1,6 +1,7 @@
 mod commands;
 mod device;
 mod discovery;
+mod feeds;
 mod heartbeat;
 mod persistence;
 mod state;
@@ -26,6 +27,7 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
             tray::setup(&handle)?;
+            feeds::spawn(handle.clone());
             sysmonitor::spawn(handle.clone());
             heartbeat::spawn(handle);
             Ok(())
@@ -44,6 +46,9 @@ pub fn run() {
             commands::save_profile,
             commands::delete_profile,
             commands::apply_profile,
+            commands::list_feeds,
+            commands::delete_feed,
+            commands::feed_server_status,
             commands::gpu_monitoring_available,
             commands::set_show_in_taskbar,
         ])

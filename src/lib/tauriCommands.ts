@@ -3,6 +3,8 @@ import type {
   BulkScreenSlotInput,
   CountdownAction,
   DiscoveredDevice,
+  Feed,
+  FeedServerStatus,
   Profile,
   ScreenSlot,
   ScreenSlotInput,
@@ -63,6 +65,19 @@ export function deleteProfile(id: string): Promise<void> {
 
 export function applyProfile(id: string): Promise<ScreenSlot[]> {
   return invoke("apply_profile", { id });
+}
+
+export function listFeeds(): Promise<Feed[]> {
+  return invoke("list_feeds");
+}
+
+/** External feeds only; rejects with a plain message string. */
+export function deleteFeed(id: string): Promise<void> {
+  return invoke("delete_feed", { id });
+}
+
+export function feedServerStatus(): Promise<FeedServerStatus> {
+  return invoke("feed_server_status");
 }
 
 export function gpuMonitoringAvailable(): Promise<boolean> {

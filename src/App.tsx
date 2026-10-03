@@ -5,6 +5,7 @@ import { ConnectionControl } from "./components/settings/ConnectionControl";
 import { ScreenGrid } from "./components/designer/ScreenGrid";
 import { ScreenEditor } from "./components/designer/ScreenEditor";
 import { ProfilesDrawer } from "./components/profiles/ProfilesDrawer";
+import { FeedsDrawer } from "./components/feeds/FeedsDrawer";
 import { ThemeControl } from "./components/theme/ThemeControl";
 import { StatusBar } from "./components/status/StatusBar";
 import { useApplyTheme } from "./hooks/useApplyTheme";
@@ -14,12 +15,14 @@ import {
   describeOrbitError,
   isConnectionLost,
   type BulkScreenSlotInput,
+  type Feed,
   type OrbitError,
   type ScreenSlot,
   type SystemInfo,
 } from "./lib/types";
 import { useLayoutDraftStore } from "./stores/layoutDraftStore";
 import { useDeviceStore } from "./stores/deviceStore";
+import { useFeedsStore } from "./stores/feedsStore";
 import { useWindowStore } from "./stores/windowStore";
 import "./App.css";
 
@@ -44,6 +47,9 @@ function App() {
 
   const [selected, setSelected] = useState<number | null>(null);
   const [profilesOpen, setProfilesOpen] = useState(false);
+  const [feedsOpen, setFeedsOpen] = useState(false);
+  const refreshFeeds = useFeedsStore((s) => s.refresh);
+  const setFeeds = useFeedsStore((s) => s.setFeeds);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
   const [applyState, setApplyState] = useState<"idle" | "applying" | "error">("idle");
@@ -93,6 +99,17 @@ function App() {
       unlistenRebooted.then((f) => f());
     };
   }, [setSystem, setSystemUnsupported]);
+
+  // Feeds exist whether or not a device is connected (the sysMonitor
+  // readings, anything another app pushes), so they're loaded once here and
+  // kept current from feeds/pusher.rs's change event rather than per form.
+  useEffect(() => {
+    void refreshFeeds();
+    const unlisten = listen<Feed[]>("feeds://changed", (event) => setFeeds(event.payload));
+    return () => {
+      unlisten.then((f) => f());
+    };
+  }, [refreshFeeds, setFeeds]);
 
   useEffect(() => {
     if (!rebootNotice) return;
@@ -205,6 +222,9 @@ function App() {
             />
           )}
           <ThemeControl />
+          <button type="button" onClick={() => setFeedsOpen(true)}>
+            Feeds
+          </button>
           {connected && (
             <button type="button" className="profiles-open-button" onClick={() => setProfilesOpen(true)}>
               Profiles
@@ -276,6 +296,8 @@ function App() {
           onApplied={handleProfileApplied}
         />
       )}
+
+      <FeedsDrawer open={feedsOpen} onClose={() => setFeedsOpen(false)} />
 
       {connected && dirtyCount > 0 && (
         <div className="apply-bar">

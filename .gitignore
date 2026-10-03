@@ -30,3 +30,7 @@ dist-ssr
 .impeccable/
 agent/
 skills-lock.json
+
+# PresentMon, downloaded next to examples/fps-feed.ps1 — a third-party
+# binary, not project content.
+examples/PresentMon*.exe
