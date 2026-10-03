@@ -22,7 +22,7 @@ profiles you can flip between, and a tray-resident background service that
 pushes live CPU/GPU/RAM stats to a screen automatically.
 
 <p align="center">
-  <img src="OrbitCommandCenter.png" alt="OrbIt Command Center connected to an orb: five round screen tiles (Time, Weather, Asteroids, Analog Clock, Ticker), the Time screen's settings below, and the device status bar along the bottom" width="720" />
+  <img src="OrbitCommandCenter.png" alt="OrbIt Command Center connected to an orb: a rail on the left with saved profiles and live feeds, five round screen tiles previewing what each orb screen shows, the selected screen's control picker and settings below, and the device status bar along the bottom" width="720" />
 </p>
 
 > **Note:** `OrbItWidget` is a custom firmware fork, not (yet) part of
