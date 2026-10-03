@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "6f2f9f2a-6f0f-4b1a-9b8a-0c1e2f3a4b5c",
     "name": "OrbIt API",
-    "description": "REST control surface for OrbItWidget on an info-orbs device — assigns a control (time, weather, ticker, custom, analogClock, gauge, sysMonitor, asteroids, countdown, or blank) plus its params to each of the device's 5 physical screens (index 0-4).\n\nFull spec: docs/orbit-api.md in the OrbIt-Command-Center repo.\n\nSet the `device_ip` collection variable to your device's IP or hostname (no `http://`, no trailing slash) before sending anything — every request in this collection uses it. There's no auth on this API (LAN-only, by design), so nothing else to configure.\n\nMost single-screen \"Set ...\" requests target screen 0 by default via a `screen` path variable on that request — override it per-request (Params tab → Path Variables) rather than editing the URL.",
+    "description": "REST control surface for OrbItWidget on an info-orbs device — assigns a control (time, weather, ticker, custom, analogClock, gauge, sysMonitor, screensaver, countdown, or blank) plus its params to each of the device's 5 physical screens (index 0-4).\n\nFull spec: docs/orbit-api.md in the OrbIt-Command-Center repo.\n\nSet the `device_ip` collection variable to your device's IP or hostname (no `http://`, no trailing slash) before sending anything — every request in this collection uses it. There's no auth on this API (LAN-only, by design), so nothing else to configure.\n\nMost single-screen \"Set ...\" requests target screen 0 by default via a `screen` path variable on that request — override it per-request (Params tab → Path Variables) rather than editing the URL.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -268,7 +268,7 @@
           "response": []
         },
         {
-          "name": "Set Asteroids",
+          "name": "Set Screensaver",
           "request": {
             "method": "POST",
             "header": [
@@ -276,7 +276,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"control\": \"asteroids\",\n  \"params\": {}\n}",
+              "raw": "{\n  \"control\": \"screensaver\",\n  \"params\": { \"effect\": \"cycle\", \"cycleSeconds\": 120 }\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -286,7 +286,7 @@
               "path": ["orbit", "api", "v1", "screens", ":screen"],
               "variable": [{ "key": "screen", "value": "0" }]
             },
-            "description": "Decorative starfield screensaver. No params."
+            "description": "Decorative animation. params.effect is asteroids, matrix, warp, orrery, radar, or cycle (rotates through them every cycleSeconds, default 300, clamped 30-86400). params.color (RGB565 integer or color name) optionally tints it."
           },
           "response": []
         },

@@ -12,7 +12,7 @@ export const timeParamsSchema = z.object({
 export type TimeParams = z.infer<typeof timeParamsSchema>;
 
 // Colors are RGB565 integers, the same form the device reports them in (see
-// lib/rgb565.ts) — analogClock, gauge and countdown all use this.
+// lib/rgb565.ts) — analogClock, gauge, countdown and screensaver all use this.
 const rgb565Schema = z.number().int().min(0).max(0xffff);
 
 export const analogClockParamsSchema = z.object({
@@ -65,3 +65,17 @@ export const countdownSetSchema = z.object({
   color: rgb565Schema.optional(),
 });
 export type CountdownSetParams = z.infer<typeof countdownSetSchema>;
+
+// screensaver's effects, in the order the device cycles through them, and
+// each one's default color (ScreensaverControl in the firmware) — the color
+// it draws in when `params.color` is left out.
+export const SCREENSAVER_EFFECTS = ["asteroids", "matrix", "warp", "orrery", "radar"] as const;
+export type ScreensaverEffect = (typeof SCREENSAVER_EFFECTS)[number];
+
+export const SCREENSAVER_EFFECT_COLORS: Record<ScreensaverEffect, number> = {
+  asteroids: 64800,
+  matrix: 2016,
+  warp: 34429,
+  orrery: 65184,
+  radar: 2016,
+};

@@ -13,6 +13,6 @@ export const CONTROL_LABELS: Record<ControlType, string> = {
   weather: "Weather",
   ticker: "Ticker",
   custom: "Custom",
-  asteroids: "Asteroids (screensaver)",
+  screensaver: "Screensaver",
   countdown: "Countdown",
 };

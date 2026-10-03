@@ -29,7 +29,7 @@ export const CONTROL_TYPES = [
   "weather",
   "ticker",
   "custom",
-  "asteroids",
+  "screensaver",
   "countdown",
 ] as const;
 

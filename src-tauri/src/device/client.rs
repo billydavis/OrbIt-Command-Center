@@ -173,7 +173,7 @@ mod tests {
       "screens": [
         { "screen": 0, "control": "time", "params": { "showDate": true, "showDay": true, "format24Hour": false }, "updatedAt": 1234567890 },
         { "screen": 1, "control": "weather", "params": { "element": "temperature" }, "updatedAt": 0 },
-        { "screen": 2, "control": "asteroids", "params": {}, "updatedAt": 0 },
+        { "screen": 2, "control": "screensaver", "params": { "effect": "asteroids" }, "updatedAt": 0 },
         { "screen": 3, "control": "analogClock", "params": { "background": 0, "tickColor": 65535, "hourColor": 65535, "minuteColor": 65535, "secondColor": 63488 }, "updatedAt": 1234567890 },
         { "screen": 4, "control": "ticker", "params": { "symbol": "BTC/USD", "pollIntervalSeconds": 900 }, "updatedAt": 1234567999 }
       ]

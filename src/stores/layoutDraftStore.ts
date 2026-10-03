@@ -9,7 +9,15 @@ import { SCREEN_COUNT, type ScreenSlot, type ScreenSlotInput } from "../lib/type
 // `draft` entries always agree — the alternative (stripping it only where
 // it's about to be re-sent) would desync live vs. draft and reintroduce
 // the false-"dirty" bug this same live/draft split was built to avoid.
+//
+// "asteroids" used to be a control of its own before it became one of the
+// screensaver's effects. Firmware that predates that still reports it, and
+// the device still accepts it on write as an alias — folding it in here
+// gives the editor a form to show for it.
 function sanitizeSlot(slot: ScreenSlot): ScreenSlot {
+  if (slot.control === "asteroids") {
+    return { ...slot, control: "screensaver", params: { effect: "asteroids" } };
+  }
   if (slot.control !== "sysMonitor" || slot.params.center !== "") {
     return slot;
   }

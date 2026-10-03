@@ -89,8 +89,11 @@ export function ScreenEditor({ screen }: ScreenEditorProps) {
           // switching from one screen to a different screen that happens to
           // share the same control type wouldn't remount the form, leaving
           // it showing the previous screen's values/state instead of the
-          // newly-selected screen's actual params.
-          key={`${screen}-${control}`}
+          // newly-selected screen's actual params. updatedAt remounts it
+          // after an apply too, so a value the device adjusted on the way in
+          // (a clamped ticker poll interval or screensaver cycleSeconds)
+          // shows as the device has it rather than as it was typed.
+          key={`${screen}-${control}-${live.updatedAt}`}
           screen={screen}
           initialParams={draft.params}
           onChange={(params) => setDraftSlot(screen, { control, params })}

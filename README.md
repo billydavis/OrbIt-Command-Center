@@ -65,7 +65,7 @@ The installer lands in `src-tauri/target/release/bundle/`.
 
 The device has 5 physical round screens, each independently assigned a
 **control** (`time`, `analogClock`, `gauge`, `sysMonitor`, `weather`,
-`ticker`, `custom`, `asteroids`, `countdown`, or `blank`) with its own
+`ticker`, `custom`, `screensaver`, `countdown`, or `blank`) with its own
 `params`. The full contract is documented in [`docs/orbit-api.md`](docs/orbit-api.md); this app is one client of it.
 
 | Piece | Purpose |

@@ -9,7 +9,7 @@ import { SysMonitorForm } from "./SysMonitorForm";
 import { WeatherForm } from "./WeatherForm";
 import { TickerForm } from "./TickerForm";
 import { CustomForm } from "./CustomForm";
-import { AsteroidsForm } from "./AsteroidsForm";
+import { ScreensaverForm } from "./ScreensaverForm";
 
 // countdown is intentionally not in this registry — it doesn't follow the
 // "edit params, apply as part of the bulk layout" pattern every other
@@ -24,5 +24,5 @@ export const CONTROL_FORMS: Record<Exclude<ControlType, "countdown">, ComponentT
   weather: WeatherForm,
   ticker: TickerForm,
   custom: CustomForm,
-  asteroids: AsteroidsForm,
+  screensaver: ScreensaverForm,
 };

@@ -66,7 +66,7 @@ const ICON_PATHS: Record<ControlType, React.ReactNode> = {
       <path d="M15 5l5 7-5 7" />
     </>
   ),
-  asteroids: (
+  screensaver: (
     <>
       <path d="M7.5 4.5 11 3.5l3.5 1.8 2.7 3.4-.8 3.6-2.7 2.7-4.4.9-3.6-1.7-1.8-3.6.8-3.6z" />
       <circle cx="10.5" cy="9.5" r=".7" fill="currentColor" stroke="none" />

@@ -67,6 +67,7 @@ const COLOR_PARAMS: Record<string, string[]> = {
   analogClock: ["background", "tickColor", "hourColor", "minuteColor", "secondColor"],
   gauge: ["color", "trackColor"],
   countdown: ["color"],
+  screensaver: ["color"],
 };
 
 export const COLORS_UNSUPPORTED_MESSAGE =
