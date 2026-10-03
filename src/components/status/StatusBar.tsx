@@ -42,17 +42,6 @@ export function StatusBar() {
         <span className="mono-num status-bar-muted">{system.ip}</span>
       </span>
 
-      <span className="status-bar-item" title={`${quality[0].toUpperCase()}${quality.slice(1)} signal`}>
-        <span className="signal-bars" aria-hidden="true">
-          {[1, 2, 3, 4].map((n) => (
-            <span key={n} className={n <= bars ? "signal-bar signal-bar-on" : "signal-bar"} />
-          ))}
-        </span>
-        <span className="status-bar-ssid">{system.ssid}</span>
-        <span className="mono-num status-bar-muted">{formatRssi(system.rssi)}</span>
-        <span className="visually-hidden">, {quality} signal</span>
-      </span>
-
       <span className="status-bar-item status-bar-optional">
         Up <span className="mono-num">{formatUptime(system.uptimeSeconds)}</span>
       </span>
@@ -66,6 +55,19 @@ export function StatusBar() {
 
       <span className="status-bar-item status-bar-optional" title={`Firmware built ${system.firmwareBuilt}`}>
         Built {formatBuildDate(system.firmwareBuilt)}
+      </span>
+
+      {/* Everything to the left is about the orb itself; the network it's
+          on is a different kind of thing, so it sits apart at the far end. */}
+      <span className="status-bar-item status-bar-wifi" title={`${quality[0].toUpperCase()}${quality.slice(1)} signal`}>
+        <span className="signal-bars" aria-hidden="true">
+          {[1, 2, 3, 4].map((n) => (
+            <span key={n} className={n <= bars ? "signal-bar signal-bar-on" : "signal-bar"} />
+          ))}
+        </span>
+        <span className="status-bar-ssid">{system.ssid}</span>
+        <span className="mono-num status-bar-muted">{formatRssi(system.rssi)}</span>
+        <span className="visually-hidden">, {quality} signal</span>
       </span>
     </footer>
   );

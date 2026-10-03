@@ -61,6 +61,12 @@ pub fn save(app: &AppHandle, name: String, slots: Vec<BulkScreenSlotInput>) -> R
     save_at(&profiles_path(app)?, name, slots)
 }
 
+/// Replaces what a saved profile holds, keeping its id, name and place in
+/// the list.
+pub fn update(app: &AppHandle, id: &str, slots: Vec<BulkScreenSlotInput>) -> Result<Profile, ProfileError> {
+    update_at(&profiles_path(app)?, id, slots)
+}
+
 pub fn delete(app: &AppHandle, id: &str) -> Result<(), ProfileError> {
     delete_at(&profiles_path(app)?, id)
 }
@@ -96,6 +102,18 @@ fn save_at(path: &Path, name: String, slots: Vec<BulkScreenSlotInput>) -> Result
     profiles.push(profile.clone());
     save_all_at(path, &profiles)?;
     Ok(profile)
+}
+
+fn update_at(path: &Path, id: &str, slots: Vec<BulkScreenSlotInput>) -> Result<Profile, ProfileError> {
+    let mut profiles = list_at(path);
+    let profile = profiles
+        .iter_mut()
+        .find(|p| p.id == id)
+        .ok_or_else(|| ProfileError::NotFound(id.to_string()))?;
+    profile.slots = slots;
+    let updated = profile.clone();
+    save_all_at(path, &profiles)?;
+    Ok(updated)
 }
 
 fn delete_at(path: &Path, id: &str) -> Result<(), ProfileError> {
@@ -167,6 +185,36 @@ mod tests {
         assert_eq!(remaining.len(), 1);
         assert_eq!(remaining[0].id, b.id);
         let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn update_replaces_slots_and_keeps_identity_and_order() {
+        let path = temp_profiles_path();
+        let a = save_at(&path, "A".to_string(), sample_slots()).unwrap();
+        let b = save_at(&path, "B".to_string(), sample_slots()).unwrap();
+        let new_slots = vec![BulkScreenSlotInput {
+            screen: 3,
+            control: "screensaver".to_string(),
+            params: serde_json::json!({ "effect": "matrix" }),
+        }];
+
+        let updated = update_at(&path, &a.id, new_slots.clone()).unwrap();
+
+        assert_eq!(updated.id, a.id);
+        assert_eq!(updated.name, "A");
+        assert_eq!(updated.created_at, a.created_at);
+        assert_eq!(updated.slots, new_slots);
+        let listed = list_at(&path);
+        assert_eq!(listed[0], updated);
+        assert_eq!(listed[1], b);
+        let _ = std::fs::remove_file(&path);
+    }
+
+    #[test]
+    fn update_missing_profile_is_not_found() {
+        let path = temp_profiles_path();
+        let err = update_at(&path, "nope", sample_slots()).unwrap_err();
+        assert!(matches!(err, ProfileError::NotFound(_)));
     }
 
     #[test]

@@ -69,6 +69,16 @@ interface LayoutDraftState {
 
   setDraftSlot: (screen: number, input: ScreenSlotInput) => void;
 
+  /**
+   * Like setDraftSlot, but for a draft changed from outside that screen's
+   * own form (picking a feed in the rail, say). A form holds its fields in
+   * local state from the moment it mounts, so it has to be told to start
+   * over from the new draft — `draftRevision` is what ScreenEditor keys it
+   * on to do that.
+   */
+  replaceDraftSlot: (screen: number, input: ScreenSlotInput) => void;
+  draftRevision: Record<number, number>;
+
   /** Discards unsaved edits for one screen, reverting to live state. */
   resetDraftSlot: (screen: number) => void;
 
@@ -88,6 +98,7 @@ interface LayoutDraftState {
 export const useLayoutDraftStore = create<LayoutDraftState>((set, get) => ({
   live: {},
   draft: {},
+  draftRevision: {},
 
   syncFromDevice: (screens) => {
     const live: Record<number, ScreenSlot> = {};
@@ -114,19 +125,28 @@ export const useLayoutDraftStore = create<LayoutDraftState>((set, get) => ({
     set((state) => ({ draft: { ...state.draft, [screen]: input } }));
   },
 
+  replaceDraftSlot: (screen, input) => {
+    set((state) => ({
+      draft: { ...state.draft, [screen]: input },
+      draftRevision: { ...state.draftRevision, [screen]: (state.draftRevision[screen] ?? 0) + 1 },
+    }));
+  },
+
   resetDraftSlot: (screen) => {
     const live = get().live[screen];
     if (!live) return;
-    set((state) => ({ draft: { ...state.draft, [screen]: toInput(live) } }));
+    get().replaceDraftSlot(screen, toInput(live));
   },
 
   discardAllDrafts: () => {
     const { live } = get();
     const draft: Record<number, ScreenSlotInput> = {};
+    const draftRevision = { ...get().draftRevision };
     for (const [screenStr, slot] of Object.entries(live)) {
       draft[Number(screenStr)] = toInput(slot);
+      draftRevision[Number(screenStr)] = (draftRevision[Number(screenStr)] ?? 0) + 1;
     }
-    set((state) => ({ draft: { ...state.draft, ...draft } }));
+    set((state) => ({ draft: { ...state.draft, ...draft }, draftRevision }));
   },
 
   patchLive: (rawSlot) => {

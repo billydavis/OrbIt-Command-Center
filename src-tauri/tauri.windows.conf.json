@@ -1,0 +1,14 @@
+{
+  "app": {
+    "windows": [
+      {
+        "title": "OrbIt Command Center",
+        "width": 1120,
+        "height": 760,
+        "minWidth": 680,
+        "minHeight": 480,
+        "decorations": false
+      }
+    ]
+  }
+}

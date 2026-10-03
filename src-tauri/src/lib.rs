@@ -44,6 +44,7 @@ pub fn run() {
             commands::countdown_action,
             commands::list_profiles,
             commands::save_profile,
+            commands::update_profile,
             commands::delete_profile,
             commands::apply_profile,
             commands::list_feeds,

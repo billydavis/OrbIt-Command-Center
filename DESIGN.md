@@ -72,11 +72,9 @@ components:
     rounded: "{rounded.sm}"
     padding: "0.6em 1.2em"
   screen-tile-circle:
-    backgroundColor: "{colors.ink}"
-    textColor: "{colors.paper}"
     rounded: "{rounded.circle}"
-    width: "110px"
-    height: "110px"
+    width: "96px"
+    height: "96px"
   profile-card:
     backgroundColor: "{colors.surface-tint}"
     textColor: "{colors.ink}"
@@ -100,9 +98,9 @@ for "unapplied", red for "wrong". Typography moved from an unstyled webfont
 claim (`Inter`, never actually loaded, silently falling back per-OS) to a
 native system-font stack at a real fixed scale, plus a mono/tabular-nums
 treatment reserved for the numbers a technical operator actually reads off
-this thing: screen index, countdown remaining-seconds. Layout has not been
-touched by this pass; it remains the documented baseline until a `layout`
-pass addresses it.
+this thing: screen index, countdown remaining-seconds. Layout is the
+"Workbench": a left rail holding profiles and feeds, always in view, beside
+the row of five screens and the selected screen's editor (see section 5).
 
 Every surface exists to answer one question at a glance ("is this screen's
 config live, dirty, or in error?"), not to look designed. This explicitly
@@ -263,11 +261,17 @@ any component.
 - **Hint:** ink/paper text at 0.7 opacity, 0.85em
 
 ### Screen Tile (signature component)
-The five round tiles are the product's visual anchor. Each is a 110px
-circle, ink background inverted from the page, with an amber dirty-dot in
-the top-right when unapplied, and small de-emphasized index/control/label
-text stacked inside. This is the one place the system allows itself to be
-physical rather than flat-form.
+The five round tiles are the product's visual anchor. Each is a 96px
+circle showing a drawing of what that screen shows on the orb
+(`ScreenPreview`): the real time, a gauge following its feed, the
+sysMonitor readings, and a likeness for what only the device fetches
+(weather, a ticker's price). The drawing uses the orb's own colors on black
+glass, so it looks the same in either theme and is the one place literal
+colors are allowed. An amber dirty-dot sits top-right when unapplied, and
+a nameplate under the circle carries the index and what's on it (the feed
+id, in mono, for a screen following a feed). The same drawing, small and
+still, stands in for a control in the picker and for each screen in a
+saved profile.
 
 Selection is an **offset ring**: a 3px Signal ring held 4px off the
 circle by a page-colored gap (box-shadow, not border), so it reads as a
@@ -285,14 +289,56 @@ dot means live device state, never decoration.
 
 ### Status Bar
 A 2rem strip fixed to the window's bottom edge while connected, fed by the
-heartbeat's `GET /api/v1/system`: hostname + IP, WiFi network with a
-four-bar signal meter and dBm, uptime, free heap, firmware build date.
+heartbeat's `GET /api/v1/system`: on the left, the orb's own details (hostname + IP, uptime, free heap,
+firmware build date); at the far right, set apart as the one thing that
+isn't the orb, the WiFi network with a four-bar signal meter and dBm.
 Flat (page background, 1px divider on top, no shadow) and entirely
 neutral: signal strength is shown by bar count, not color, since none of
 these readings is one of the four states the signal colors are reserved
-for. Numbers use `.mono-num`; labels stay in the body font. The apply bar
-stacks directly above it. Below 860px wide, uptime/heap/build drop out
+for. Numbers use `.mono-num`; labels stay in the body font.  Below 860px wide, uptime/heap/build drop out
 before anything truncates.
+
+### Workbench layout
+Connected, the body is two columns. A 250px **rail** runs the full height
+of the window's left edge, on its own neutral (`--color-rail`, one step
+darker than the page in either theme: the second neutral layer a sidebar
+gets), and scrolls separately from the main column. It holds
+Profiles (one row each: the name and five small screen pictures; clicking
+the row applies it and leaves it highlighted until the layout is next
+changed. Right-clicking a row (or the keyboard's menu key) opens a
+small menu with Apply, Update with current layout and Delete, so nothing
+in the row moves on hover. A plus in the heading saves the current layout) and Feeds (id, live value, a thin bar for where the value sits
+in its range; clicking one puts it on the selected screen as a draft).
+Nothing lives behind a drawer except feed details (ages, deleting, the
+push address). The main column is the screen row, then the editor in two
+columns: every control pictured in a grid, and the chosen control's
+settings beside it. Under 1080px the editor stacks; under 940px the rail
+drops below the screens. The window can't be made narrower than 680px, so
+the screen row always fits without scrolling sideways.
+
+### Title bar (Windows)
+On Windows the native title bar is off (`src-tauri/tauri.windows.conf.json`)
+and the header is the title bar: it spans the full window width, drags the
+window from anywhere that isn't a control, and ends in flat, square
+minimize, maximize/restore and close buttons flush in the corner (close
+turns Alert Red on hover). The page itself never scrolls; only the body
+under the header does, so the scrollbar never runs up beside those
+buttons. Drawers start below the header for the same reason. macOS and
+Linux keep their native title bars and show no window buttons of ours.
+Interface text is not selectable, except what someone would copy: inputs,
+error messages, the connection address and the status bar.
+
+### Apply controls
+The header is sticky and reads left to right: the app's icon, the title,
+then the connection status as plain text (no menu of its own); at the
+right, the apply controls. The icon is the menu button, as a Windows
+title bar's is: it opens Refresh,
+Disconnect and Appearance; Appearance opens in that same panel, not a
+modal, since its changes apply instantly and the app behind it is what
+you are watching. With unapplied changes the apply controls are:
+a discard icon button (tooltip "Discard changes"), and **Apply Layout**, the app's one
+filled button, in Pending Amber because what it carries is the unapplied
+state. With none: the plain text "Orb matches what you see".
 
 ## 6. Do's and Don'ts
 

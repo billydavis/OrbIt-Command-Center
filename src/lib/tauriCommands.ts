@@ -59,6 +59,11 @@ export function saveProfile(name: string, slots: BulkScreenSlotInput[]): Promise
   return invoke("save_profile", { name, slots });
 }
 
+/** Replaces what a saved profile holds; its name and place in the list stay. */
+export function updateProfile(id: string, slots: BulkScreenSlotInput[]): Promise<Profile> {
+  return invoke("update_profile", { id, slots });
+}
+
 export function deleteProfile(id: string): Promise<void> {
   return invoke("delete_profile", { id });
 }

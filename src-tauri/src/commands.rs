@@ -114,6 +114,15 @@ pub fn save_profile(
 }
 
 #[tauri::command]
+pub fn update_profile(
+    app: AppHandle,
+    id: String,
+    slots: Vec<BulkScreenSlotInput>,
+) -> Result<Profile, ProfileError> {
+    profile_store::update(&app, &id, slots)
+}
+
+#[tauri::command]
 pub fn delete_profile(app: AppHandle, id: String) -> Result<(), ProfileError> {
     profile_store::delete(&app, &id)
 }

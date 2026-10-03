@@ -1,15 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { ConnectionSettings } from "./components/settings/ConnectionSettings";
-import { ConnectionControl } from "./components/settings/ConnectionControl";
+import { SettingsMenu } from "./components/settings/SettingsMenu";
+import { WindowControls } from "./components/settings/WindowControls";
 import { ScreenGrid } from "./components/designer/ScreenGrid";
 import { ScreenEditor } from "./components/designer/ScreenEditor";
-import { ProfilesDrawer } from "./components/profiles/ProfilesDrawer";
+import { ProfileList } from "./components/profiles/ProfileList";
 import { FeedsDrawer } from "./components/feeds/FeedsDrawer";
-import { ThemeControl } from "./components/theme/ThemeControl";
+import { FeedsPanel } from "./components/feeds/FeedsPanel";
 import { StatusBar } from "./components/status/StatusBar";
 import { useApplyTheme } from "./hooks/useApplyTheme";
 import { applyLayout, getScreens, setShowInTaskbar } from "./lib/tauriCommands";
+import { IS_WINDOWS } from "./lib/platform";
 import { COLORS_UNSUPPORTED_MESSAGE, colorsNotApplied } from "./lib/rgb565";
 import {
   describeOrbitError,
@@ -23,6 +25,7 @@ import {
 import { useLayoutDraftStore } from "./stores/layoutDraftStore";
 import { useDeviceStore } from "./stores/deviceStore";
 import { useFeedsStore } from "./stores/feedsStore";
+import { useProfilesStore } from "./stores/profilesStore";
 import { useWindowStore } from "./stores/windowStore";
 import "./App.css";
 
@@ -46,8 +49,8 @@ function App() {
   }, [showInTaskbar]);
 
   const [selected, setSelected] = useState<number | null>(null);
-  const [profilesOpen, setProfilesOpen] = useState(false);
   const [feedsOpen, setFeedsOpen] = useState(false);
+  const setActiveProfile = useProfilesStore((s) => s.setActive);
   const refreshFeeds = useFeedsStore((s) => s.refresh);
   const setFeeds = useFeedsStore((s) => s.setFeeds);
   const [refreshing, setRefreshing] = useState(false);
@@ -208,113 +211,181 @@ function App() {
     ? [0, 1, 2, 3, 4].filter((i) => isDirty(i) && draft[i]?.control !== "countdown").length
     : 0;
 
+  // A profile stays highlighted until the layout is changed away from it,
+  // or the orb is gone. Keyed on the draft itself, not just on being
+  // dirty, so an edit made while other changes are still unapplied counts
+  // too (a profile updated from a layout with unapplied changes is
+  // highlighted, and the next edit should still drop it); a draft that
+  // changed without becoming dirty (a resync from the orb) doesn't.
+  const anyDirty = connected && [0, 1, 2, 3, 4].some((i) => isDirty(i));
+  const draftAtHighlight = useRef(draft);
+  const activeProfileId = useProfilesStore((s) => s.activeId);
+  useEffect(() => {
+    draftAtHighlight.current = useLayoutDraftStore.getState().draft;
+  }, [activeProfileId]);
+  useEffect(() => {
+    if (!connected) setActiveProfile(null);
+    else if (anyDirty && draft !== draftAtHighlight.current) setActiveProfile(null);
+  }, [draft, anyDirty, connected, setActiveProfile]);
+
+  // Notices about what just happened (a failed background push, an apply
+  // result, a restarted orb). Shown at the top of whichever layout is up.
+  const banners = (
+    <>
+      {backgroundError && (
+        <p className="connection-settings-error background-error">
+          Background push: {backgroundError}
+          <button type="button" onClick={() => setBackgroundError(null)}>
+            Dismiss
+          </button>
+        </p>
+      )}
+
+      {applyWarning && (
+        <p className="connection-settings-error background-error" role="alert">
+          {applyWarning}
+          <button type="button" onClick={() => setApplyWarning(null)}>
+            Dismiss
+          </button>
+        </p>
+      )}
+
+      {applySuccessMessage && (
+        <p className="apply-success-banner background-error">
+          ✓ {applySuccessMessage}
+          <button type="button" onClick={() => setApplySuccessMessage(null)}>
+            Dismiss
+          </button>
+        </p>
+      )}
+
+      {rebootNotice && connected && (
+        <p className="apply-success-banner background-error" role="status">
+          The orb restarted and restored its saved layout. Countdowns aren't saved, so any were cleared.
+          <button
+            type="button"
+            onClick={() => {
+              setRebootNotice(false);
+              void handleRefresh();
+            }}
+          >
+            Refresh
+          </button>
+        </p>
+      )}
+
+      {applyError && (
+        <p className="connection-settings-error background-error" role="alert">
+          Couldn't apply: {applyError}
+          <button type="button" onClick={() => setApplyError(null)}>
+            Dismiss
+          </button>
+        </p>
+      )}
+    </>
+  );
+
   return (
     <main className={`app-shell${connected ? " has-status-bar" : ""}`}>
-      <header className="app-header">
-        <h1>OrbIt Command Center</h1>
-        <div className="app-header-actions">
+      {/* On Windows this is also the window's title bar (the native one
+          is off there): dragging any part of it that isn't a control moves
+          the window. The attribute only counts on the element actually
+          under the pointer, hence one on each of the non-interactive
+          pieces. It does nothing where the native title bar is on. */}
+      <header className={`app-header${IS_WINDOWS ? " app-header-titlebar" : ""}`} data-tauri-drag-region>
+        <div className="app-header-title" data-tauri-drag-region>
+          <SettingsMenu
+            connected={connected}
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            onDisconnect={handleDisconnect}
+          />
+          <h1 data-tauri-drag-region>OrbIt Command Center</h1>
           {connected && host && (
-            <ConnectionControl
-              host={host}
-              refreshing={refreshing}
-              onRefresh={handleRefresh}
-              onDisconnect={handleDisconnect}
-            />
+            <span className="connection-status" data-tauri-drag-region>
+              <span className="connected-status-dot" aria-hidden="true" />
+              Connected to <strong className="mono-num">{host}</strong>
+            </span>
           )}
-          <ThemeControl />
-          <button type="button" onClick={() => setFeedsOpen(true)}>
-            Feeds
-          </button>
-          {connected && (
-            <button type="button" className="profiles-open-button" onClick={() => setProfilesOpen(true)}>
-              Profiles
-            </button>
-          )}
+        </div>
+        <div className="app-header-actions">
+          {/* Up here rather than in a bar of its own: the one action that
+              sends anything to the orb stays in the same place whether or
+              not there's something to send, and says which it is. */}
+          {connected &&
+            (dirtyCount > 0 ? (
+              <div className="apply-controls">
+                <button
+                  type="button"
+                  className="icon-button"
+                  aria-label="Discard changes"
+                  title="Discard changes"
+                  disabled={applyState === "applying"}
+                  onClick={handleDiscardAll}
+                >
+                  <svg viewBox="0 0 24 24" aria-hidden="true">
+                    <polyline points="1 4 1 10 7 10" />
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  className="apply-controls-apply"
+                  disabled={applyState === "applying"}
+                  onClick={handleApplyLayout}
+                >
+                  {applyState === "applying" ? "Applying…" : `Apply Layout (${dirtyCount})`}
+                </button>
+              </div>
+            ) : (
+              <span className="apply-controls-idle">Orb matches what you see</span>
+            ))}
+          {IS_WINDOWS && <WindowControls />}
         </div>
       </header>
 
-      <div className={`app-body${connected ? "" : " app-body-centered"}`}>
-        {backgroundError && (
-          <p className="connection-settings-error background-error">
-            Background push: {backgroundError}
-            <button type="button" onClick={() => setBackgroundError(null)}>
-              Dismiss
-            </button>
-          </p>
-        )}
-
-        {applyWarning && (
-          <p className="connection-settings-error background-error" role="alert">
-            {applyWarning}
-            <button type="button" onClick={() => setApplyWarning(null)}>
-              Dismiss
-            </button>
-          </p>
-        )}
-
-        {applySuccessMessage && (
-          <p className="apply-success-banner background-error">
-            ✓ {applySuccessMessage}
-            <button type="button" onClick={() => setApplySuccessMessage(null)}>
-              Dismiss
-            </button>
-          </p>
-        )}
-
-        {rebootNotice && connected && (
-          <p className="apply-success-banner background-error" role="status">
-            The orb restarted and restored its saved layout. Countdowns aren't saved, so any were cleared.
-            <button
-              type="button"
-              onClick={() => {
-                setRebootNotice(false);
-                void handleRefresh();
-              }}
-            >
-              Refresh
-            </button>
-          </p>
-        )}
-
+      <div className={`app-body ${connected ? "app-body-workbench" : "app-body-centered"}`}>
         {!connected ? (
-          <ConnectionSettings onConnected={handleConnected} />
-        ) : (
           <>
-            {refreshError && <p className="connection-settings-error">{refreshError}</p>}
-
-            <ScreenGrid selected={selected} onSelect={setSelected} />
-
-            {selected !== null && <ScreenEditor screen={selected} />}
+            {banners}
+            <ConnectionSettings onConnected={handleConnected} />
+            <button type="button" className="feeds-open-button" onClick={() => setFeedsOpen(true)}>
+              Feeds
+            </button>
           </>
+        ) : (
+          // The workbench: profiles and feeds stay in view in a full-height
+          // rail beside the screens, rather than behind drawers. The rail
+          // and the main column scroll separately.
+          <div className="workbench">
+            <aside className="rail">
+              <section className="rail-section">
+                <ProfileList onApplied={handleProfileApplied} />
+              </section>
+              <section className="rail-section">
+                <div className="rail-heading-row">
+                  <h2 className="rail-heading">Feeds</h2>
+                  <button type="button" className="rail-heading-action" onClick={() => setFeedsOpen(true)}>
+                    Details
+                  </button>
+                </div>
+                <FeedsPanel screen={selected} />
+              </section>
+            </aside>
+
+            <div className="workbench-main">
+              {banners}
+              {refreshError && <p className="connection-settings-error">{refreshError}</p>}
+
+              <ScreenGrid selected={selected} onSelect={setSelected} />
+
+              {selected !== null && <ScreenEditor screen={selected} />}
+            </div>
+          </div>
         )}
       </div>
 
-      {connected && (
-        <ProfilesDrawer
-          open={profilesOpen}
-          onClose={() => setProfilesOpen(false)}
-          onApplied={handleProfileApplied}
-        />
-      )}
-
       <FeedsDrawer open={feedsOpen} onClose={() => setFeedsOpen(false)} />
-
-      {connected && dirtyCount > 0 && (
-        <div className="apply-bar">
-          <span className="apply-bar-status">
-            {dirtyCount} screen{dirtyCount === 1 ? "" : "s"} changed
-          </span>
-          <div className="button-row">
-            <button type="button" disabled={applyState === "applying"} onClick={handleDiscardAll}>
-              Discard
-            </button>
-            <button type="button" disabled={applyState === "applying"} onClick={handleApplyLayout}>
-              {applyState === "applying" ? "Applying…" : `Apply Layout (${dirtyCount})`}
-            </button>
-          </div>
-          {applyError && <p className="field-error apply-bar-error">{applyError}</p>}
-        </div>
-      )}
 
       {connected && <StatusBar />}
     </main>
