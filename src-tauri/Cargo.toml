@@ -1,6 +1,6 @@
 [package]
 name = "orbit-command-center"
-version = "0.1.0"
+version = "0.1.1"
 description = "Desktop control surface for the info-orbs OrbIt device"
 authors = ["Billy Davis"]
 license = "AGPL-3.0-or-later"
