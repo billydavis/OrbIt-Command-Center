@@ -13,11 +13,14 @@ pub struct GpuSample {
 }
 
 pub async fn sample() -> Option<GpuSample> {
-    let output = Command::new("nvidia-smi")
-        .args(["--query-gpu=utilization.gpu,temperature.gpu", "--format=csv,noheader,nounits"])
-        .output()
-        .await
-        .ok()?;
+    let mut command = Command::new("nvidia-smi");
+    command.args(["--query-gpu=utilization.gpu,temperature.gpu", "--format=csv,noheader,nounits"]);
+    // The release build has no console of its own, so Windows would open a
+    // new one for nvidia-smi on every sample — a window that flashes and is
+    // gone. CREATE_NO_WINDOW runs it without one.
+    #[cfg(windows)]
+    command.creation_flags(0x0800_0000);
+    let output = command.output().await.ok()?;
 
     if !output.status.success() {
         return None;
