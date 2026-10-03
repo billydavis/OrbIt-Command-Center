@@ -161,6 +161,18 @@ pub fn set_show_in_taskbar(app: AppHandle, show: bool) {
     crate::tray::set_show_in_taskbar(&app, show);
 }
 
+/// The flyout's "Open full window".
+#[tauri::command]
+pub fn show_main_window(app: AppHandle) {
+    crate::tray::show_main_window(&app);
+}
+
+/// Escape in the flyout.
+#[tauri::command]
+pub fn hide_flyout(app: AppHandle) {
+    crate::tray::hide_flyout(&app);
+}
+
 #[tauri::command]
 pub async fn gpu_monitoring_available() -> bool {
     crate::sysmonitor::gpu::is_available().await

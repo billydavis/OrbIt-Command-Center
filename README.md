@@ -72,6 +72,7 @@ The device has 5 physical round screens, each independently assigned a
 | ----- | ------- |
 | Designer | 5 round tiles standing in for the device's screens — pick a control per screen, fill in its form, see a dirty indicator, and push everything with one **Apply Layout** |
 | Profiles | Save the current 5-screen layout under a name, stored locally (`profiles.json` in the app's data dir), and re-apply it later in one click |
+| Tray flyout | A small panel that opens beside the tray icon on a click, for a quick change without the full window: apply a profile, pick a screen, change what it shows, **Apply Layout**. Double-click the icon for the full window |
 | Countdown | Action-driven (set/pause/resume/restart/stop) rather than a saved config, so it gets its own always-live panel instead of going through Apply Layout |
 | sysMonitor loop | A background task (Rust, ~5s interval) reads local CPU/RAM via `sysinfo` and GPU stats via `nvidia-smi` (best-effort, NVIDIA-only) and pushes them to whichever screen is assigned `sysMonitor` — keeps running from the system tray even with the window closed |
 | Feeds | Named live numbers a `gauge` can follow instead of a typed-in value: the CPU/RAM/GPU readings one by one (`sys.cpu`, ...), plus anything another app on this PC posts to `http://127.0.0.1:47800/feeds/{name}` — see [`docs/feeds-api.md`](docs/feeds-api.md). The app pushes each bound screen its feed's latest value, at most once a second |

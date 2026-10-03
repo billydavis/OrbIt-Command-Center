@@ -52,6 +52,8 @@ pub fn run() {
             commands::feed_server_status,
             commands::gpu_monitoring_available,
             commands::set_show_in_taskbar,
+            commands::show_main_window,
+            commands::hide_flyout,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

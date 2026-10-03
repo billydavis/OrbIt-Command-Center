@@ -36,7 +36,7 @@ function toInput(slot: ScreenSlot): ScreenSlotInput {
 // Plain JSON.stringify is key-order-sensitive, which made a screen with
 // several params keys read as "dirty" immediately after connect even with
 // no edits — compare by recursively sorting object keys instead.
-function stableStringify(value: unknown): string {
+export function stableStringify(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map(stableStringify).join(",")}]`;
   }

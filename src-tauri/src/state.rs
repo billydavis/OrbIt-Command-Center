@@ -1,5 +1,6 @@
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
+use std::time::Instant;
 
 use crate::device::{OrbitClient, ScreenSlot};
 use crate::feeds::{Bindings, FeedRegistry, FeedServerStatus};
@@ -40,6 +41,12 @@ pub struct AppState {
     /// tray::set_show_in_taskbar). Read by the window's event handler so
     /// minimizing sends the window to the tray too.
     pub tray_only: AtomicBool,
+
+    /// When the tray flyout was last hidden. Pressing the tray icon while
+    /// the flyout is open takes focus from it, which hides it, before the
+    /// click itself arrives; tray::toggle_flyout reads this so that click
+    /// doesn't open it straight back up.
+    pub flyout_hidden_at: Mutex<Option<Instant>>,
 }
 
 impl AppState {

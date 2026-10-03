@@ -89,6 +89,15 @@ export function gpuMonitoringAvailable(): Promise<boolean> {
   return invoke("gpu_monitoring_available");
 }
 
+/** Shows and focuses the full window, putting the tray flyout away. */
+export function showMainWindow(): Promise<void> {
+  return invoke("show_main_window");
+}
+
+export function hideFlyout(): Promise<void> {
+  return invoke("hide_flyout");
+}
+
 /** Windows only (a no-op elsewhere): taskbar button, or tray icon alone. */
 export function setShowInTaskbar(show: boolean): Promise<void> {
   return invoke("set_show_in_taskbar", { show });

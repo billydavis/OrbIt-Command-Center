@@ -316,6 +316,29 @@ settings beside it. Under 1080px the editor stacks; under 940px the rail
 drops below the screens. The window can't be made narrower than 680px, so
 the screen row always fits without scrolling sideways.
 
+### Tray flyout
+A second, 400×640 window for the quick visit: it opens against the screen
+edge beside the tray icon on a left click (a double click, or the icon
+button in its header, opens the full window instead) and hides on Escape
+or as soon as it loses focus. No title bar, not resizable, not movable.
+With no orb connected the click opens the full window, since connecting
+is that window's job.
+
+It is the workbench's own pieces at that width, top to bottom: the orb's
+name with the Live Green dot and the signal meter; profiles as one small
+button each (applied on click; the one the layout matches takes the
+Signal border); the five screen tiles at 58px across a band in the rail's
+neutral, with a notch in the band's bottom edge under the selected one;
+then the one part that scrolls: every control in two rows of five, the
+selected control's settings, and the feeds in three columns. Along the
+bottom, where the header's apply controls would be: "Orb matches what you
+see", or Discard and the amber **Apply Layout**.
+
+Both windows show one state (`src/lib/windowSync.ts`): an edit started in
+either is there, still unapplied, in the other. Saving, updating and
+deleting profiles, feed details, Appearance and connecting stay in the
+full window.
+
 ### Title bar (Windows)
 On Windows the native title bar is off (`src-tauri/tauri.windows.conf.json`)
 and the header is the title bar: it spans the full window width, drags the

@@ -9,14 +9,13 @@ import { ProfileList } from "./components/profiles/ProfileList";
 import { FeedsDrawer } from "./components/feeds/FeedsDrawer";
 import { FeedsPanel } from "./components/feeds/FeedsPanel";
 import { StatusBar } from "./components/status/StatusBar";
+import { useApplyLayout } from "./hooks/useApplyLayout";
 import { useApplyTheme } from "./hooks/useApplyTheme";
-import { applyLayout, getScreens, setShowInTaskbar } from "./lib/tauriCommands";
+import { getScreens, setShowInTaskbar } from "./lib/tauriCommands";
 import { IS_WINDOWS } from "./lib/platform";
-import { COLORS_UNSUPPORTED_MESSAGE, colorsNotApplied } from "./lib/rgb565";
 import {
   describeOrbitError,
   isConnectionLost,
-  type BulkScreenSlotInput,
   type Feed,
   type OrbitError,
   type ScreenSlot,
@@ -30,7 +29,6 @@ import { useWindowStore } from "./stores/windowStore";
 import "./App.css";
 
 const BACKGROUND_ERROR_AUTO_DISMISS_MS = 10_000;
-const APPLY_SUCCESS_AUTO_DISMISS_MS = 3_000;
 const REBOOT_NOTICE_AUTO_DISMISS_MS = 10_000;
 
 function App() {
@@ -55,16 +53,8 @@ function App() {
   const setFeeds = useFeedsStore((s) => s.setFeeds);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
-  const [applyState, setApplyState] = useState<"idle" | "applying" | "error">("idle");
-  const [applyError, setApplyError] = useState<string | null>(null);
+  const layout = useApplyLayout();
   const [backgroundError, setBackgroundError] = useState<string | null>(null);
-  // An apply the device accepted but didn't fully honor (see colorsNotApplied).
-  const [applyWarning, setApplyWarning] = useState<string | null>(null);
-  // dirtyCount hits 0 the instant a successful apply resyncs draft to live,
-  // which is also the apply-bar's render condition — so success and "the
-  // bar disappears" happen in the same tick, with no window to show
-  // confirmation inside that bar. Tracked separately here instead.
-  const [applySuccessMessage, setApplySuccessMessage] = useState<string | null>(null);
   const [rebootNotice, setRebootNotice] = useState(false);
 
   // sysmonitor/task.rs emits this when a background push fails, and
@@ -126,17 +116,9 @@ function App() {
     return () => clearTimeout(timer);
   }, [backgroundError]);
 
-  useEffect(() => {
-    if (!applySuccessMessage) return;
-    const timer = setTimeout(() => setApplySuccessMessage(null), APPLY_SUCCESS_AUTO_DISMISS_MS);
-    return () => clearTimeout(timer);
-  }, [applySuccessMessage]);
-
   const draft = useLayoutDraftStore((s) => s.draft);
   const isDirty = useLayoutDraftStore((s) => s.isDirty);
   const syncFromDevice = useLayoutDraftStore((s) => s.syncFromDevice);
-  const patchLive = useLayoutDraftStore((s) => s.patchLive);
-  const discardAllDrafts = useLayoutDraftStore((s) => s.discardAllDrafts);
 
   function handleConnected(screens: ScreenSlot[]) {
     syncFromDevice(screens);
@@ -170,46 +152,7 @@ function App() {
     await handleRefresh();
   }
 
-  async function handleApplyLayout() {
-    // countdown is excluded from bulk apply — it's action-driven and always
-    // applied directly (see ScreenEditor/CountdownForm) — and only dirty
-    // screens are sent, since bulk POST replaces exactly what's given.
-    const toApply: BulkScreenSlotInput[] = Object.entries(draft)
-      .map(([screenStr, input]) => ({ screen: Number(screenStr), ...input }))
-      .filter((s) => s.control !== "countdown" && isDirty(s.screen));
-
-    if (toApply.length === 0) return;
-
-    setApplyState("applying");
-    setApplyError(null);
-    try {
-      const applied = await applyLayout(toApply);
-      applied.forEach(patchLive);
-      setApplyState("idle");
-      const colorsIgnored = applied.some((slot) => {
-        const sent = toApply.find((s) => s.screen === slot.screen);
-        return sent !== undefined && colorsNotApplied(sent, slot);
-      });
-      setApplyWarning(colorsIgnored ? COLORS_UNSUPPORTED_MESSAGE : null);
-      setApplySuccessMessage(
-        `Applied ${applied.length} screen${applied.length === 1 ? "" : "s"} to device`,
-      );
-    } catch (err) {
-      setApplyState("error");
-      setApplyError(describeOrbitError(err));
-      if (isConnectionLost(err)) markLost(describeOrbitError(err));
-    }
-  }
-
-  function handleDiscardAll() {
-    discardAllDrafts();
-    setApplyError(null);
-  }
-
   const connected = connectionStatus === "connected";
-  const dirtyCount = connected
-    ? [0, 1, 2, 3, 4].filter((i) => isDirty(i) && draft[i]?.control !== "countdown").length
-    : 0;
 
   // A profile stays highlighted until the layout is changed away from it,
   // or the orb is gone. Keyed on the draft itself, not just on being
@@ -241,19 +184,19 @@ function App() {
         </p>
       )}
 
-      {applyWarning && (
+      {layout.warning && (
         <p className="connection-settings-error background-error" role="alert">
-          {applyWarning}
-          <button type="button" onClick={() => setApplyWarning(null)}>
+          {layout.warning}
+          <button type="button" onClick={layout.dismissWarning}>
             Dismiss
           </button>
         </p>
       )}
 
-      {applySuccessMessage && (
+      {layout.successMessage && (
         <p className="apply-success-banner background-error">
-          ✓ {applySuccessMessage}
-          <button type="button" onClick={() => setApplySuccessMessage(null)}>
+          ✓ {layout.successMessage}
+          <button type="button" onClick={layout.dismissSuccess}>
             Dismiss
           </button>
         </p>
@@ -274,10 +217,10 @@ function App() {
         </p>
       )}
 
-      {applyError && (
+      {layout.error && (
         <p className="connection-settings-error background-error" role="alert">
-          Couldn't apply: {applyError}
-          <button type="button" onClick={() => setApplyError(null)}>
+          Couldn't apply: {layout.error}
+          <button type="button" onClick={layout.dismissError}>
             Dismiss
           </button>
         </p>
@@ -313,15 +256,15 @@ function App() {
               sends anything to the orb stays in the same place whether or
               not there's something to send, and says which it is. */}
           {connected &&
-            (dirtyCount > 0 ? (
+            (layout.dirtyCount > 0 ? (
               <div className="apply-controls">
                 <button
                   type="button"
                   className="icon-button"
                   aria-label="Discard changes"
                   title="Discard changes"
-                  disabled={applyState === "applying"}
-                  onClick={handleDiscardAll}
+                  disabled={layout.applying}
+                  onClick={layout.discard}
                 >
                   <svg viewBox="0 0 24 24" aria-hidden="true">
                     <polyline points="1 4 1 10 7 10" />
@@ -331,10 +274,10 @@ function App() {
                 <button
                   type="button"
                   className="apply-controls-apply"
-                  disabled={applyState === "applying"}
-                  onClick={handleApplyLayout}
+                  disabled={layout.applying}
+                  onClick={layout.apply}
                 >
-                  {applyState === "applying" ? "Applying…" : `Apply Layout (${dirtyCount})`}
+                  {layout.applying ? "Applying…" : `Apply Layout (${layout.dirtyCount})`}
                 </button>
               </div>
             ) : (

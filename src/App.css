@@ -1666,3 +1666,312 @@ button.destructive:focus-visible {
   box-sizing: border-box;
   font-size: var(--text-sm);
 }
+
+/* The tray flyout (components/flyout/Flyout.tsx): a 400px window of its own
+   that opens beside the tray icon. Top to bottom: the orb's name and
+   signal, profiles, the five screens on a rail-colored band, the selected
+   screen's settings and the feeds (the one part that scrolls), and the
+   apply bar. It reuses the workbench's own pieces, laid out for the width. */
+.flyout {
+  /* The page color, for the notch: inside the band --color-bg is the band's. */
+  --flyout-page: var(--color-bg);
+  height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  user-select: none;
+}
+
+.flyout input,
+.flyout textarea,
+.flyout .field-error,
+.flyout .connection-settings-error {
+  user-select: text;
+}
+
+.flyout button {
+  font-size: var(--text-sm);
+}
+
+.flyout-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.5rem 0.5rem 0.875rem;
+}
+
+.flyout-host {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+}
+
+.flyout-signal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: var(--text-xs);
+}
+
+.flyout-signal .mono-num {
+  opacity: 0.7;
+}
+
+.flyout-open-full {
+  width: 1.875rem;
+  height: 1.875rem;
+  background: none;
+  box-shadow: none;
+}
+
+.flyout-open-full:hover,
+.flyout-open-full:focus-visible {
+  background-color: var(--color-surface-tint);
+}
+
+.flyout-open-full svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.flyout-profiles {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0 0.875rem 0.75rem;
+}
+
+/* Two rows of profiles at most; more than that scroll, so the screens
+   below never get pushed out of the window. The padding keeps the
+   buttons' borders and shadows from being clipped by the scroll box. */
+.flyout-profile-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  max-height: 4.75rem;
+  overflow-y: auto;
+  padding: 2px 2px 4px;
+  margin: -2px -2px -4px;
+}
+
+.flyout-profile {
+  max-width: 100%;
+  padding: 0.3em 0.8em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flyout-profile-active {
+  border-color: var(--color-signal);
+  background-color: var(--color-surface-tint);
+}
+
+/* The five screens, on a band in the rail's neutral. Everything in it that
+   is drawn "in the page color" (the gap inside the selection ring, the
+   dirty dot's edge) takes the band's color instead. */
+.flyout-device {
+  --color-bg: var(--color-rail);
+  position: relative;
+  padding: 1rem 0.875rem 0.75rem;
+  background-color: var(--color-bg);
+  border-block: 1px solid var(--color-divider);
+}
+
+/* A notch in the band's bottom edge under the selected screen, so the
+   settings below read as belonging to it. */
+.flyout-device::after {
+  content: "";
+  position: absolute;
+  bottom: -7px;
+  left: calc(0.875rem + (var(--i) + 0.5) * (100% - 1.75rem) / 5);
+  width: 12px;
+  height: 12px;
+  transform: translateX(-50%) rotate(45deg);
+  background-color: var(--flyout-page);
+  border-left: 1px solid var(--color-divider);
+  border-top: 1px solid var(--color-divider);
+  transition: left 0.15s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flyout-device::after {
+    transition: none;
+  }
+}
+
+/* Five equal columns across the band rather than a row that can scroll:
+   the width is fixed, so they always fit. */
+.flyout .screen-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  overflow: visible;
+  padding: 0;
+  margin: 0;
+}
+
+.flyout .screen-tile {
+  width: 100%;
+  gap: 0.4rem;
+}
+
+.flyout .screen-tile-circle {
+  width: 58px;
+  height: 58px;
+}
+
+/* The same offset ring, thinner, to fit a column. */
+.flyout .screen-tile-selected .screen-tile-circle {
+  box-shadow:
+    0 0 0 3px var(--color-bg),
+    0 0 0 5px var(--color-signal),
+    0 2px 6px var(--color-shadow);
+}
+
+.flyout .screen-tile-selected:focus-visible .screen-tile-circle {
+  box-shadow:
+    0 0 0 3px var(--color-bg),
+    0 0 0 5px var(--color-signal-active),
+    0 2px 6px var(--color-shadow);
+}
+
+.flyout .screen-tile-dirty-dot {
+  top: 0;
+  right: 1px;
+  width: 11px;
+  height: 11px;
+}
+
+.flyout .screen-tile-control {
+  font-size: var(--text-xs);
+}
+
+.flyout-sheet {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 1rem 0.875rem;
+}
+
+.flyout-sheet > * {
+  flex-shrink: 0;
+}
+
+.flyout .screen-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border-top: none;
+  padding-top: 0;
+}
+
+.flyout .screen-editor h3 {
+  font-size: var(--text-base);
+}
+
+/* Every control still in view at once: two rows of five, each a picture
+   with its name under it. */
+.flyout .control-picker {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+.flyout .control-picker-option {
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.4rem 0 0.3rem;
+  font-size: var(--text-xs);
+  line-height: 1.2;
+  text-align: center;
+  background: none;
+  box-shadow: none;
+}
+
+.flyout .control-picker-option:hover,
+.flyout .control-picker-option-selected {
+  background-color: var(--color-surface-tint);
+}
+
+.flyout .control-picker-preview {
+  width: 34px;
+  height: 34px;
+}
+
+/* Two-word names wrap ("System Monitor") rather than being cut short. */
+.flyout .control-picker-label {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+.flyout-feeds {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--color-divider);
+}
+
+.flyout .feeds-panel {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+.flyout .feeds-panel-row {
+  padding: 0.35rem 0.4rem;
+}
+
+.flyout-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 0.6rem 0.875rem;
+  border-top: 1px solid var(--color-divider);
+}
+
+.flyout-bar p {
+  margin: 0;
+}
+
+.flyout-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+}
+
+.flyout-bar-actions button {
+  height: 2.25rem;
+  padding: 0 1rem;
+}
+
+.flyout-bar-actions .apply-controls-apply {
+  flex: 1;
+}
+
+/* No orb to adjust: say so, and offer the window where one is connected. */
+.flyout-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 2rem;
+  text-align: center;
+}
+
+.flyout-empty p {
+  margin: 0;
+  font-size: var(--text-sm);
+}
