@@ -302,7 +302,13 @@ before anything truncates.
 Connected, the body is two columns. A 250px **rail** runs the full height
 of the window's left edge, on its own neutral (`--color-rail`, one step
 darker than the page in either theme: the second neutral layer a sidebar
-gets), and scrolls separately from the main column. It holds
+gets), and scrolls separately from the main column. Each of its sections
+has a heading that is also the button that folds the section away: a
+chevron ahead of the title points down while it's open and right while
+it's folded, and which ones are folded is remembered. It holds Orb (the
+device's own Left, OK and Right buttons, a Short/Medium/Long choice for
+the press, and the widget the orb says it's showing after a press; the one
+part of the workbench that isn't about the OrbIt screens),
 Profiles (one row each: the name and five small screen pictures; clicking
 the row applies it and leaves it highlighted until the layout is next
 changed. Right-clicking a row (or the keyboard's menu key) opens a

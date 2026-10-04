@@ -26,6 +26,13 @@ interface DeviceState {
   system: SystemInfo | null;
   /** The connected firmware has no GET /api/v1/system, so `system` stays null. */
   systemUnsupported: boolean;
+  /**
+   * The widget the orb is showing ("OrbIt", "Clock", ...), as of the last
+   * button press sent from here: the reply to a press is the only place the
+   * device says. Null until then, and after anything that could have
+   * changed it unseen (a reconnect, a restart).
+   */
+  widget: string | null;
 
   connect: (host: string, hostname?: string) => Promise<ScreenSlot[]>;
   disconnect: () => Promise<void>;
@@ -39,6 +46,7 @@ interface DeviceState {
   markLost: (message: string) => void;
   setSystem: (system: SystemInfo) => void;
   setSystemUnsupported: () => void;
+  setWidget: (widget: string | null) => void;
 }
 
 export const useDeviceStore = create<DeviceState>()(
@@ -50,9 +58,10 @@ export const useDeviceStore = create<DeviceState>()(
       error: null,
       system: null,
       systemUnsupported: false,
+      widget: null,
 
       connect: async (host, hostname) => {
-        set({ status: "connecting", error: null, system: null, systemUnsupported: false });
+        set({ status: "connecting", error: null, system: null, systemUnsupported: false, widget: null });
         try {
           const screens = await connectDevice(host);
           const knownHostname = hostname ?? (host.toLowerCase().endsWith(".local") ? host.toLowerCase() : null);
@@ -73,6 +82,7 @@ export const useDeviceStore = create<DeviceState>()(
           error: null,
           system: null,
           systemUnsupported: false,
+          widget: null,
         });
       },
 
@@ -80,7 +90,7 @@ export const useDeviceStore = create<DeviceState>()(
         // Only meaningful once actually connected — an error before that point
         // is just a normal failed-connect-attempt, handled by connect() itself.
         if (get().status !== "connected") return;
-        set({ status: "lost", error: message, system: null, systemUnsupported: false });
+        set({ status: "lost", error: message, system: null, systemUnsupported: false, widget: null });
       },
 
       setSystem: (system) => {
@@ -94,6 +104,8 @@ export const useDeviceStore = create<DeviceState>()(
         if (get().status !== "connected") return;
         set({ systemUnsupported: true });
       },
+
+      setWidget: (widget) => set({ widget }),
     }),
     {
       name: "orbit-device",

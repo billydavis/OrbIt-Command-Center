@@ -8,6 +8,8 @@ import { ScreenEditor } from "./components/designer/ScreenEditor";
 import { ProfileList } from "./components/profiles/ProfileList";
 import { FeedsDrawer } from "./components/feeds/FeedsDrawer";
 import { FeedsPanel } from "./components/feeds/FeedsPanel";
+import { OrbButtons } from "./components/device/OrbButtons";
+import { RailSection } from "./components/rail/RailSection";
 import { StatusBar } from "./components/status/StatusBar";
 import { useApplyLayout } from "./hooks/useApplyLayout";
 import { useApplyTheme } from "./hooks/useApplyTheme";
@@ -40,6 +42,7 @@ function App() {
   const markLost = useDeviceStore((s) => s.markLost);
   const setSystem = useDeviceStore((s) => s.setSystem);
   const setSystemUnsupported = useDeviceStore((s) => s.setSystemUnsupported);
+  const setWidget = useDeviceStore((s) => s.setWidget);
 
   const showInTaskbar = useWindowStore((s) => s.showInTaskbar);
   useEffect(() => {
@@ -85,13 +88,17 @@ function App() {
   useEffect(() => {
     const unlistenSystem = listen<SystemInfo>("device://system", (event) => setSystem(event.payload));
     const unlistenUnsupported = listen("device://system-unsupported", () => setSystemUnsupported());
-    const unlistenRebooted = listen<SystemInfo>("device://rebooted", () => setRebootNotice(true));
+    const unlistenRebooted = listen<SystemInfo>("device://rebooted", () => {
+      setRebootNotice(true);
+      // It comes back up on its first widget, whatever it was showing.
+      setWidget(null);
+    });
     return () => {
       unlistenSystem.then((f) => f());
       unlistenUnsupported.then((f) => f());
       unlistenRebooted.then((f) => f());
     };
-  }, [setSystem, setSystemUnsupported]);
+  }, [setSystem, setSystemUnsupported, setWidget]);
 
   // Feeds exist whether or not a device is connected (the sysMonitor
   // readings, anything another app pushes), so they're loaded once here and
@@ -302,18 +309,21 @@ function App() {
           // and the main column scroll separately.
           <div className="workbench">
             <aside className="rail">
-              <section className="rail-section">
-                <ProfileList onApplied={handleProfileApplied} />
-              </section>
-              <section className="rail-section">
-                <div className="rail-heading-row">
-                  <h2 className="rail-heading">Feeds</h2>
+              <RailSection id="orb" title="Orb">
+                <OrbButtons />
+              </RailSection>
+              <ProfileList onApplied={handleProfileApplied} />
+              <RailSection
+                id="feeds"
+                title="Feeds"
+                actions={
                   <button type="button" className="rail-heading-action" onClick={() => setFeedsOpen(true)}>
                     Details
                   </button>
-                </div>
+                }
+              >
                 <FeedsPanel screen={selected} />
-              </section>
+              </RailSection>
             </aside>
 
             <div className="workbench-main">

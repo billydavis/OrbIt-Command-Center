@@ -42,6 +42,7 @@ pub fn run() {
             commands::apply_screen,
             commands::refresh_ticker,
             commands::countdown_action,
+            commands::press_button,
             commands::list_profiles,
             commands::save_profile,
             commands::update_profile,

@@ -1,10 +1,13 @@
 import { invoke } from "@tauri-apps/api/core";
 import type {
   BulkScreenSlotInput,
+  ButtonPressed,
   CountdownAction,
   DiscoveredDevice,
   Feed,
   FeedServerStatus,
+  OrbButton,
+  PressLength,
   Profile,
   ScreenSlot,
   ScreenSlotInput,
@@ -49,6 +52,11 @@ export function refreshTicker(n: number): Promise<ScreenSlot> {
 
 export function countdownAction(n: number, action: CountdownAction): Promise<ScreenSlot> {
   return invoke("countdown_action", { n, action });
+}
+
+/** Presses one of the orb's own buttons; resolves with the widget now showing. */
+export function pressButton(button: OrbButton, press: PressLength): Promise<ButtonPressed> {
+  return invoke("press_button", { button, press });
 }
 
 export function listProfiles(): Promise<Profile[]> {

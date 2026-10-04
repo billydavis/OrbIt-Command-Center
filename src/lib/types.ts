@@ -64,6 +64,20 @@ export interface SystemInfo {
   firmwareBuilt: string;
 }
 
+/** The orb's three physical buttons (POST /api/v1/buttons/{left|ok|right}). */
+export type OrbButton = "left" | "ok" | "right";
+
+/** How long a button is held; the firmware treats each as a different press. */
+export type PressLength = "short" | "medium" | "long";
+
+/** The orb's reply to a button press. */
+export interface ButtonPressed {
+  button: string;
+  press: string;
+  /** The widget showing after the press, e.g. "OrbIt" or "Clock". */
+  widget: string | null;
+}
+
 /** An OrbIt device found by an mDNS scan (src-tauri/src/discovery). */
 export interface DiscoveredDevice {
   name: string;

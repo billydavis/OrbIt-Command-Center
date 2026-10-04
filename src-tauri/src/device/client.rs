@@ -4,8 +4,8 @@ use serde::de::DeserializeOwned;
 
 use super::error::OrbitError;
 use super::model::{
-    BulkScreenSlotInput, BulkScreensRequest, CountdownAction, DeviceErrorBody, ScreenSlot,
-    ScreenSlotInput, ScreensResponse, SystemInfo,
+    BulkScreenSlotInput, BulkScreensRequest, ButtonPressed, CountdownAction, DeviceErrorBody,
+    OrbButton, PressLength, ScreenSlot, ScreenSlotInput, ScreensResponse, SystemInfo,
 };
 
 // LAN-only device: a wrong/unreachable IP should fail fast in the UI rather
@@ -76,6 +76,23 @@ impl OrbitClient {
     pub async fn get_system(&self) -> Result<SystemInfo, OrbitError> {
         let url = format!("{}/api/v1/system", self.root_url);
         self.send_json(self.http.get(url)).await
+    }
+
+    /// Acts like a press of one of the orb's physical buttons — the core
+    /// web service again, not the OrbIt API, so it works whichever widget
+    /// is showing. 404s on firmware without it.
+    pub async fn press_button(
+        &self,
+        button: OrbButton,
+        press: PressLength,
+    ) -> Result<ButtonPressed, OrbitError> {
+        let url = format!(
+            "{}/api/v1/buttons/{}?press={}",
+            self.root_url,
+            button.as_str(),
+            press.as_str()
+        );
+        self.send_json(self.http.post(url)).await
     }
 
     pub async fn get_screens(&self) -> Result<Vec<ScreenSlot>, OrbitError> {
@@ -165,7 +182,7 @@ impl OrbitClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use wiremock::matchers::{method, path};
+    use wiremock::matchers::{method, path, query_param};
     use wiremock::{Mock, MockServer, ResponseTemplate};
 
     // Example payload straight from docs/orbit-api.md's GET /screens section.
@@ -328,6 +345,28 @@ mod tests {
         assert_eq!(info.rssi, -58);
         assert_eq!(info.uptime_seconds, 767);
         assert_eq!(info.firmware_built, "Sep 20 2026 14:03:11");
+    }
+
+    #[tokio::test]
+    async fn press_button_posts_to_the_core_endpoint_and_reads_the_widget_now_showing() {
+        let server = MockServer::start().await;
+        Mock::given(method("POST"))
+            .and(path("/api/v1/buttons/right"))
+            .and(query_param("press", "medium"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(
+                r#"{"button":"right","press":"medium","widget":"Clock"}"#,
+                "application/json",
+            ))
+            .mount(&server)
+            .await;
+
+        let client = OrbitClient::with_base_url(format!("{}/orbit/api/v1", server.uri()));
+        let pressed = client
+            .press_button(OrbButton::Right, PressLength::Medium)
+            .await
+            .expect("press should succeed");
+
+        assert_eq!(pressed.widget.as_deref(), Some("Clock"));
     }
 
     #[tokio::test]

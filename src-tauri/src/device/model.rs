@@ -38,6 +38,58 @@ pub struct SystemInfo {
     pub firmware_built: String,
 }
 
+/// One of the orb's three physical buttons, as the core web service names
+/// them in POST /api/v1/buttons/{left|ok|right}.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum OrbButton {
+    Left,
+    Ok,
+    Right,
+}
+
+impl OrbButton {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Left => "left",
+            Self::Ok => "ok",
+            Self::Right => "right",
+        }
+    }
+}
+
+/// How long the button is held, as the firmware tells presses apart
+/// (`?press=`). Left and Right change widget on a short press only; every
+/// other press goes to the widget that's showing.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum PressLength {
+    Short,
+    Medium,
+    Long,
+}
+
+impl PressLength {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Short => "short",
+            Self::Medium => "medium",
+            Self::Long => "long",
+        }
+    }
+}
+
+/// The reply to a button press (firmware source: `WebService::handleButton`).
+/// `widget` is the one showing once the press has been handled, by its
+/// `getName()` (e.g. "OrbIt", "Clock") — the only place the device says so.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(default)]
+pub struct ButtonPressed {
+    pub button: String,
+    pub press: String,
+    pub widget: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 pub(super) struct ScreensResponse {
     pub screens: Vec<ScreenSlot>,

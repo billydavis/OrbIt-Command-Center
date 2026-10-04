@@ -1,7 +1,8 @@
 use tauri::{AppHandle, State};
 
 use crate::device::{
-    BulkScreenSlotInput, CountdownAction, OrbitClient, OrbitError, ScreenSlot, ScreenSlotInput,
+    BulkScreenSlotInput, ButtonPressed, CountdownAction, OrbButton, OrbitClient, OrbitError,
+    PressLength, ScreenSlot, ScreenSlotInput,
 };
 use crate::discovery::{self, DiscoveredDevice};
 use crate::feeds::bindings::{self, ScreenBinding};
@@ -97,6 +98,18 @@ pub async fn countdown_action(
         .await?;
     state.patch_layout_slot(updated.clone());
     Ok(with_binding(&state, updated))
+}
+
+/// Presses one of the orb's own buttons. Not a write to the layout (it
+/// changes which widget shows, or something inside that widget), so it
+/// doesn't take `device_writes`.
+#[tauri::command]
+pub async fn press_button(
+    button: OrbButton,
+    press: PressLength,
+    state: State<'_, AppState>,
+) -> Result<ButtonPressed, OrbitError> {
+    with_device(&state, |client| async move { client.press_button(button, press).await }).await
 }
 
 #[tauri::command]
