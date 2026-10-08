@@ -38,8 +38,20 @@ export type GaugeParams = z.infer<typeof gaugeParamsSchema>;
 // sysMonitor's numeric fields are driven by the app's background push loop,
 // not user-entered — no schema needed for a form the user doesn't fill in.
 
+// Everything but `element` is optional, and the device reports each one only
+// when it was set (see "weather control" in docs/orbit-api.md).
+export const WEATHER_LOCATION_MAX_LENGTH = 64;
+
 export const weatherParamsSchema = z.object({
   element: z.enum(["icon", "temperature", "condition"]).default("icon"),
+  location: z.string().max(WEATHER_LOCATION_MAX_LENGTH).optional(),
+  showCity: z.boolean().optional(),
+  showHighLow: z.boolean().optional(),
+  color: rgb565Schema.optional(),
+  background: rgb565Schema.optional(),
+  highColor: rgb565Schema.optional(),
+  lowColor: rgb565Schema.optional(),
+  cityColor: rgb565Schema.optional(),
 });
 export type WeatherParams = z.infer<typeof weatherParamsSchema>;
 

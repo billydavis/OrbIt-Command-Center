@@ -198,12 +198,61 @@ function draw(control: string, p: Record<string, unknown>, now: Date, feeds: Fee
         </g>
       );
       if (element === "icon") return icon(6, 1.1);
+
+      const main = color(p.color, WHITE);
+      const cityFill = color(p.cityColor, main);
+      const backdrop = <circle cx="50" cy="50" r="50" fill={color(p.background, GLASS)} />;
+      // The device shows the first part of the address the weather service
+      // resolved; the first part of what was typed is the nearest thing here.
+      const place = str(p.location).split(",")[0].trim() || "City";
+      const city = place.length > 12 ? `${place.slice(0, 11)}…` : place;
+      if (element === "condition") {
+        return (
+          <>
+            {backdrop}
+            <text x="50" y="38" fontSize="12" fontWeight="600" fill={cityFill}>
+              {city}
+            </text>
+            <text x="50" y="58" fontSize="8.5" fill={main}>
+              Condition
+            </text>
+          </>
+        );
+      }
+
+      // Both defaults as the device has them when the param is left out.
+      const showHighLow = p.showHighLow !== false;
+      const showCity = typeof p.showCity === "boolean" ? p.showCity : str(p.location).trim() !== "";
+      const reading = (x: number, label: string, fill: string) => (
+        <g fill={fill} fontSize="8">
+          <text x={x} y="73">
+            {label}
+          </text>
+          <text x={x} y="87" className="mono-num">
+            --
+          </text>
+        </g>
+      );
       return (
         <>
-          {icon(0, 0.6)}
-          <text x="50" y="66" fontSize="12" fontWeight="600">
-            {element === "temperature" ? "Temperature" : "Condition"}
+          {backdrop}
+          {showCity && (
+            <text x="50" y="20" fontSize="7.5" fill={cityFill}>
+              {city}
+            </text>
+          )}
+          <text
+            x="50"
+            y={(showHighLow ? 51 : 62) + (showCity ? 2 : 0)}
+            fontSize={(showHighLow ? 30 : 40) - (showCity ? 4 : 0)}
+            fontWeight="600"
+            fill={main}
+            className="mono-num"
+          >
+            --°
           </text>
+          {showHighLow && reading(33, "High", color(p.highColor, main))}
+          {showHighLow && reading(67, "Low", color(p.lowColor, main))}
         </>
       );
     }

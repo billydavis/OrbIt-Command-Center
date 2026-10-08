@@ -66,6 +66,7 @@ export function colorParam(raw: unknown, fallback: number): number {
 const COLOR_PARAMS: Record<string, string[]> = {
   analogClock: ["background", "tickColor", "hourColor", "minuteColor", "secondColor"],
   gauge: ["color", "trackColor"],
+  weather: ["color", "background", "highColor", "lowColor", "cityColor"],
   countdown: ["color"],
   screensaver: ["color"],
 };

@@ -194,7 +194,29 @@
               "path": ["orbit", "api", "v1", "screens", ":screen"],
               "variable": [{ "key": "screen", "value": "0" }]
             },
-            "description": "params.element picks which piece to show, e.g. \"icon\", \"temperature\", \"condition\"."
+            "description": "params.element (required) picks which piece to show: \"icon\", \"temperature\" or \"condition\". Optional: location (a per-screen place, up to 64 characters; omitted follows WEATHER_LOCATION), showCity and showHighLow (temperature only), and the colors color, background, highColor, lowColor and cityColor (RGB565 integers or color names), e.g. { \"element\": \"temperature\", \"location\": \"Phoenix, AZ\", \"color\": 2047, \"showHighLow\": false }."
+          },
+          "response": []
+        },
+        {
+          "name": "Preview Weather Readings",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"temperature\": 104,\n  \"high\": 110,\n  \"low\": 98\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/weather/preview",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "weather", "preview"]
+            },
+            "description": "Shows made-up readings on every weather screen until the next weather fetch (about ten minutes), for checking a layout with values such as a three-digit temperature. Any of temperature, high and low; never saved."
           },
           "response": []
         },
