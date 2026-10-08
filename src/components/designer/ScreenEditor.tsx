@@ -5,8 +5,7 @@ import { CONTROL_FORMS } from "../control-forms";
 import { CountdownForm } from "../control-forms/CountdownForm";
 import { refreshTicker } from "../../lib/tauriCommands";
 import { CONTROL_LABELS } from "../../lib/controlLabels";
-import { describeOrbitError, isConnectionLost, type ControlType } from "../../lib/types";
-import { useDeviceStore } from "../../stores/deviceStore";
+import { describeOrbitError, type ControlType } from "../../lib/types";
 
 interface ScreenEditorProps {
   screen: number;
@@ -22,7 +21,6 @@ export function ScreenEditor({ screen }: ScreenEditorProps) {
   const resetDraftSlot = useLayoutDraftStore((s) => s.resetDraftSlot);
   const isDirty = useLayoutDraftStore((s) => s.isDirty(screen));
   const patchLive = useLayoutDraftStore((s) => s.patchLive);
-  const markLost = useDeviceStore((s) => s.markLost);
   const [refreshing, setRefreshing] = useState(false);
   const [refreshError, setRefreshError] = useState<string | null>(null);
 
@@ -40,7 +38,6 @@ export function ScreenEditor({ screen }: ScreenEditorProps) {
     } catch (err) {
       const message = describeOrbitError(err);
       setRefreshError(message);
-      if (isConnectionLost(err)) markLost(message);
     } finally {
       setRefreshing(false);
     }

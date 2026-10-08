@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { applyProfile } from "../../lib/tauriCommands";
-import { describeOrbitError, isConnectionLost, type Profile } from "../../lib/types";
-import { useDeviceStore } from "../../stores/deviceStore";
+import { describeOrbitError, type Profile } from "../../lib/types";
 import { useProfilesStore } from "../../stores/profilesStore";
 
 interface FlyoutProfilesProps {
@@ -16,7 +15,6 @@ export function FlyoutProfiles({ onApplied }: FlyoutProfilesProps) {
   const activeId = useProfilesStore((s) => s.activeId);
   const setActive = useProfilesStore((s) => s.setActive);
   const refresh = useProfilesStore((s) => s.refresh);
-  const markLost = useDeviceStore((s) => s.markLost);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -35,7 +33,6 @@ export function FlyoutProfiles({ onApplied }: FlyoutProfilesProps) {
     } catch (err) {
       const message = describeOrbitError(err);
       setError(message);
-      if (isConnectionLost(err)) markLost(message);
     } finally {
       setBusyId(null);
     }

@@ -8,7 +8,7 @@ import { useApplyLayout } from "../../hooks/useApplyLayout";
 import { useApplyTheme } from "../../hooks/useApplyTheme";
 import { formatRssi, SIGNAL_BARS, signalQuality } from "../../lib/systemFormat";
 import { getScreens, hideFlyout, showMainWindow } from "../../lib/tauriCommands";
-import { describeOrbitError, isConnectionLost, type Feed } from "../../lib/types";
+import { describeOrbitError, type Feed } from "../../lib/types";
 import { useDeviceStore } from "../../stores/deviceStore";
 import { useFeedsStore } from "../../stores/feedsStore";
 import { useLayoutDraftStore } from "../../stores/layoutDraftStore";
@@ -26,7 +26,6 @@ export function Flyout() {
   const status = useDeviceStore((s) => s.status);
   const host = useDeviceStore((s) => s.host);
   const system = useDeviceStore((s) => s.system);
-  const markLost = useDeviceStore((s) => s.markLost);
   const syncFromDevice = useLayoutDraftStore((s) => s.syncFromDevice);
   const refreshFeeds = useFeedsStore((s) => s.refresh);
   const setFeeds = useFeedsStore((s) => s.setFeeds);
@@ -58,7 +57,6 @@ export function Flyout() {
       syncFromDevice(await getScreens());
     } catch (err) {
       setRefreshError(describeOrbitError(err));
-      if (isConnectionLost(err)) markLost(describeOrbitError(err));
     }
   }
 

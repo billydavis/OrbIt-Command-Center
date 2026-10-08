@@ -11,10 +11,18 @@ use crate::state::AppState;
 /// reboot or power-off would go unseen indefinitely.
 const PROBE_INTERVAL: Duration = Duration::from_secs(5);
 
-/// Consecutive failed probes before the device counts as gone. One dropped
-/// request on a busy WiFi network shouldn't bounce the user to the connect
-/// screen; two in a row (~10s of silence) means it's really off the network.
-const FAILURES_BEFORE_LOST: u32 = 2;
+/// Consecutive failed probes before the device counts as gone. The device
+/// goes quiet for seconds at a time while it fetches weather or a ticker
+/// (one request per weather location, back to back), and that shouldn't
+/// bounce the user to the connect screen. Four in a row is about 40s of
+/// silence from a device that's on the network but not answering, or about
+/// 20s from one that's off it (those probes fail at the connect timeout).
+const FAILURES_BEFORE_LOST: u32 = 4;
+
+/// Emitted with the last probe's `OrbitError` when the device counts as
+/// gone and the connection has been dropped. Nothing else decides that: a
+/// command or background push that gets no answer is just a failed request.
+pub const LOST_EVENT: &str = "device://lost";
 
 /// Emitted with a `SystemInfo` after every successful probe on firmware
 /// that has GET /api/v1/system.
@@ -129,9 +137,8 @@ async fn on_system_info(
     let _ = app.emit(SYSTEM_EVENT, &info);
 }
 
-/// Drops the connection and tells the frontend, which turns the
-/// Unreachable/Timeout payload into the "lost" state (App.tsx listens on the
-/// same event the sysMonitor loop uses for background failures).
+/// Drops the connection and tells the frontend, which goes back to the
+/// connect screen in its "lost" state.
 fn mark_lost(app: &AppHandle, state: &AppState, client: &OrbitClient, err: OrbitError) {
     // Only tear down the connection this probe was actually about: the user
     // may have disconnected or connected to another device mid-request.
@@ -143,5 +150,5 @@ fn mark_lost(app: &AppHandle, state: &AppState, client: &OrbitClient, err: Orbit
         *device = None;
     }
     *state.last_layout.lock().expect("layout mutex poisoned") = None;
-    let _ = app.emit("device-error", &err);
+    let _ = app.emit(LOST_EVENT, &err);
 }

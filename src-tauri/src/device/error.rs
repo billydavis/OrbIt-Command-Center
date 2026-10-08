@@ -32,6 +32,13 @@ pub enum OrbitError {
 }
 
 impl OrbitError {
+    /// No answer at all, as opposed to an answer the app didn't like. On its
+    /// own this doesn't mean the device is gone (it may only be busy) —
+    /// that's the heartbeat's call to make.
+    pub fn is_no_response(&self) -> bool {
+        matches!(self, OrbitError::Unreachable(_) | OrbitError::Timeout)
+    }
+
     pub(super) fn from_reqwest(err: reqwest::Error) -> Self {
         if err.is_timeout() {
             OrbitError::Timeout

@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useProfilesStore } from "../../stores/profilesStore";
-import { useDeviceStore } from "../../stores/deviceStore";
 import { useLayoutDraftStore } from "../../stores/layoutDraftStore";
 import { applyProfile } from "../../lib/tauriCommands";
 import { profileSlotsFromDraft } from "../../lib/profileSlots";
-import { describeOrbitError, isConnectionLost, SCREEN_COUNT, type Profile } from "../../lib/types";
+import { describeOrbitError, SCREEN_COUNT, type Profile } from "../../lib/types";
 import { ScreenPreview } from "../designer/ScreenPreview";
 
 interface ProfileCardProps {
@@ -27,7 +26,6 @@ export function ProfileCard({ profile, onApplied }: ProfileCardProps) {
   const update = useProfilesStore((s) => s.update);
   const active = useProfilesStore((s) => s.activeId === profile.id);
   const setActive = useProfilesStore((s) => s.setActive);
-  const markLost = useDeviceStore((s) => s.markLost);
   const [busy, setBusy] = useState<"apply" | "delete" | "update" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<"delete" | "update" | null>(null);
@@ -92,7 +90,6 @@ export function ProfileCard({ profile, onApplied }: ProfileCardProps) {
     } catch (err) {
       const message = describeOrbitError(err);
       setError(message);
-      if (isConnectionLost(err)) markLost(message);
     } finally {
       setBusy(null);
     }

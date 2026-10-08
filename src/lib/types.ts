@@ -106,7 +106,7 @@ export function describeOrbitError(err: unknown): string {
     case "Unreachable":
       return `Could not reach device: ${e.message}`;
     case "Timeout":
-      return "Request to device timed out.";
+      return "The orb took too long to answer. It may just be busy: wait a moment and try again.";
     case "DeviceRejected":
       return `Device rejected request (${e.message.status}): ${e.message.message}`;
     case "Decode":
@@ -118,15 +118,6 @@ export function describeOrbitError(err: unknown): string {
     default:
       return String(err);
   }
-}
-
-// Unreachable/Timeout mean the device dropped off the network (WiFi hiccup,
-// powered off, etc.) rather than rejecting a specific request — callers use
-// this to distinguish "lost connection, go back to the connect screen" from
-// an ordinary request-level error that should just show inline.
-export function isConnectionLost(err: unknown): boolean {
-  const e = err as OrbitError;
-  return !!e && typeof e === "object" && "kind" in e && (e.kind === "Unreachable" || e.kind === "Timeout");
 }
 
 /**

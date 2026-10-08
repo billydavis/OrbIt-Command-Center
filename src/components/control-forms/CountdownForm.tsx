@@ -4,8 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { z } from "zod";
 import { countdownAction as callCountdownAction } from "../../lib/tauriCommands";
 import { countdownSetSchema } from "../../lib/controlSchemas";
-import { describeOrbitError, isConnectionLost, type ScreenSlot } from "../../lib/types";
-import { useDeviceStore } from "../../stores/deviceStore";
+import { describeOrbitError, type ScreenSlot } from "../../lib/types";
 import { ColorInput } from "../shared/ColorInput";
 import { COLORS, COLORS_UNSUPPORTED_MESSAGE, colorsNotApplied } from "../../lib/rgb565";
 
@@ -24,7 +23,6 @@ interface CountdownFormProps {
 // from the uniform "Apply Layout" bulk flow — every button here calls
 // countdown_action directly and immediately, against live device state.
 export function CountdownForm({ screen, liveSlot, onApplied }: CountdownFormProps) {
-  const markLost = useDeviceStore((s) => s.markLost);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +44,6 @@ export function CountdownForm({ screen, liveSlot, onApplied }: CountdownFormProp
     } catch (err) {
       const message = describeOrbitError(err);
       setError(message);
-      if (isConnectionLost(err)) markLost(message);
     } finally {
       setPending(false);
     }

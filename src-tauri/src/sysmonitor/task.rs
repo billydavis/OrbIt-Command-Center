@@ -174,6 +174,9 @@ async fn push_to_screen(
             state.patch_layout_slot(updated.clone());
             let _ = app.emit("sysmonitor://tick", &updated);
         }
+        // A device that didn't answer is the heartbeat's to report, once
+        // it's sure; the next tick pushes fresh readings anyway.
+        Err(err) if err.is_no_response() => {}
         Err(err) => {
             let _ = app.emit("device-error", &err);
         }

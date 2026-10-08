@@ -37,11 +37,12 @@ interface DeviceState {
   connect: (host: string, hostname?: string) => Promise<ScreenSlot[]>;
   disconnect: () => Promise<void>;
   /**
-   * Called by any command's error handler (ScreenEditor, ProfileCard,
-   * CountdownForm, ...) when it sees Unreachable/Timeout — not just the
-   * top-level connect flow. Drops back to the connect screen with `host`
-   * pre-filled and an explanatory message, rather than leaving the UI
-   * showing a device that's no longer actually there.
+   * Called when the heartbeat gives up on the device (heartbeat.rs, after
+   * several probes in a row went unanswered). Drops back to the connect
+   * screen with `host` pre-filled and an explanatory message, rather than
+   * leaving the UI showing a device that's no longer actually there. A
+   * single command that got no answer doesn't call this: it shows its own
+   * error and the connection stays up.
    */
   markLost: (message: string) => void;
   setSystem: (system: SystemInfo) => void;

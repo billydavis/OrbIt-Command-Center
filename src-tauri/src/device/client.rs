@@ -11,7 +11,10 @@ use super::model::{
 // LAN-only device: a wrong/unreachable IP should fail fast in the UI rather
 // than hang the app.
 const CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
-const REQUEST_TIMEOUT: Duration = Duration::from_secs(5);
+// Once connected, though, the device gets a while to answer: its web server
+// shares one loop with everything else it does, so a request that arrives
+// during a weather or ticker fetch waits for that to finish first.
+const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Thin wrapper around the orbit-api REST surface (docs/orbit-api.md).
 /// One method per endpoint; no retry/backoff here — callers (Tauri commands,

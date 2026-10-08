@@ -17,7 +17,6 @@ import { getScreens, setShowInTaskbar } from "./lib/tauriCommands";
 import { IS_WINDOWS } from "./lib/platform";
 import {
   describeOrbitError,
-  isConnectionLost,
   type Feed,
   type OrbitError,
   type ScreenSlot,
@@ -60,23 +59,23 @@ function App() {
   const [backgroundError, setBackgroundError] = useState<string | null>(null);
   const [rebootNotice, setRebootNotice] = useState(false);
 
-  // sysmonitor/task.rs emits this when a background push fails, and
-  // heartbeat.rs when the device stops answering — surfaced here since it
-  // happens outside any user-initiated command and wouldn't otherwise be
-  // visible. A device that's actually gone drops the app back to the
-  // connect screen, which says so itself; anything else (one rejected push)
-  // gets the banner.
+  // sysmonitor/task.rs and feeds/pusher.rs emit "device-error" when the
+  // device rejects a background push — surfaced here since it happens
+  // outside any user-initiated command and wouldn't otherwise be visible.
+  // heartbeat.rs emits "device://lost" once the device has stopped answering
+  // for long enough to count as gone, which drops the app back to the
+  // connect screen. Only the heartbeat decides that: the device is often
+  // just busy, and one request it didn't answer says nothing more.
   useEffect(() => {
-    const unlisten = listen<OrbitError>("device-error", (event) => {
-      const message = describeOrbitError(event.payload);
-      if (isConnectionLost(event.payload)) {
-        markLost(message);
-      } else {
-        setBackgroundError(message);
-      }
-    });
+    const unlistenError = listen<OrbitError>("device-error", (event) =>
+      setBackgroundError(describeOrbitError(event.payload)),
+    );
+    const unlistenLost = listen<OrbitError>("device://lost", (event) =>
+      markLost(describeOrbitError(event.payload)),
+    );
     return () => {
-      unlisten.then((f) => f());
+      unlistenError.then((f) => f());
+      unlistenLost.then((f) => f());
     };
   }, [markLost]);
 
@@ -139,7 +138,6 @@ function App() {
       syncFromDevice(await getScreens());
     } catch (err) {
       setRefreshError(describeOrbitError(err));
-      if (isConnectionLost(err)) markLost(describeOrbitError(err));
     } finally {
       setRefreshing(false);
     }

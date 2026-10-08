@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { applyLayout } from "../lib/tauriCommands";
 import { COLORS_UNSUPPORTED_MESSAGE, colorsNotApplied } from "../lib/rgb565";
-import { describeOrbitError, isConnectionLost, type BulkScreenSlotInput } from "../lib/types";
+import { describeOrbitError, type BulkScreenSlotInput } from "../lib/types";
 import { useDeviceStore } from "../stores/deviceStore";
 import { useLayoutDraftStore } from "../stores/layoutDraftStore";
 
@@ -14,7 +14,6 @@ const APPLY_SUCCESS_AUTO_DISMISS_MS = 3_000;
  */
 export function useApplyLayout() {
   const connected = useDeviceStore((s) => s.status === "connected");
-  const markLost = useDeviceStore((s) => s.markLost);
   const draft = useLayoutDraftStore((s) => s.draft);
   const isDirty = useLayoutDraftStore((s) => s.isDirty);
   const patchLive = useLayoutDraftStore((s) => s.patchLive);
@@ -59,7 +58,6 @@ export function useApplyLayout() {
       setSuccessMessage(`Applied ${applied.length} screen${applied.length === 1 ? "" : "s"} to device`);
     } catch (err) {
       setError(describeOrbitError(err));
-      if (isConnectionLost(err)) markLost(describeOrbitError(err));
     } finally {
       setApplying(false);
     }

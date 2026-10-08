@@ -61,7 +61,11 @@ async fn run_tick(app: &AppHandle, failed_at: &mut HashMap<u8, Instant>) {
             Ok(updated) => state.patch_layout_slot(updated),
             Err(err) => {
                 failed_at.insert(screen, Instant::now());
-                let _ = app.emit("device-error", &err);
+                // A device that didn't answer is the heartbeat's to report,
+                // once it's sure; the next push carries the reading anyway.
+                if !err.is_no_response() {
+                    let _ = app.emit("device-error", &err);
+                }
             }
         }
     }

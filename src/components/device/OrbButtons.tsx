@@ -2,7 +2,6 @@ import { useState } from "react";
 import { pressButton } from "../../lib/tauriCommands";
 import {
   describeOrbitError,
-  isConnectionLost,
   type OrbButton,
   type OrbitError,
   type PressLength,
@@ -33,7 +32,6 @@ const OK_DOES: Record<string, string> = {
 export function OrbButtons() {
   const widget = useDeviceStore((s) => s.widget);
   const setWidget = useDeviceStore((s) => s.setWidget);
-  const markLost = useDeviceStore((s) => s.markLost);
   const [press, setPress] = useState<PressLength>("short");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +51,6 @@ export function OrbButtons() {
         setError("This orb's firmware doesn't take button presses from the app.");
       } else {
         setError(describeOrbitError(err));
-        if (isConnectionLost(err)) markLost(describeOrbitError(err));
       }
     } finally {
       setBusy(false);
