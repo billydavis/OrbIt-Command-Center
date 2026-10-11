@@ -14,6 +14,12 @@ pub struct ScreenSlot {
     pub params: serde_json::Value,
     #[serde(rename = "updatedAt", default)]
     pub updated_at: u64,
+    /// On a `blank` screen only: the control its saved layout entry names,
+    /// which this firmware was built without. The device keeps that entry
+    /// (and brings the screen back under a build that has the control)
+    /// until something is written to the screen.
+    #[serde(rename = "savedControl", default, skip_serializing_if = "Option::is_none")]
+    pub saved_control: Option<String>,
 }
 
 /// GET /api/v1/system — the core info-orbs web service's device status
@@ -36,6 +42,65 @@ pub struct SystemInfo {
     pub min_free_heap: u64,
     /// Compile timestamp, e.g. "Sep 20 2026 14:03:11".
     pub firmware_built: String,
+    /// The widget on screen now, by its `getName()` (e.g. "OrbIt"). `None`
+    /// on firmware that doesn't report it here.
+    pub widget: Option<String>,
+}
+
+/// What the connected firmware was built with, as the app uses it. Widgets,
+/// OrbIt's controls and the screensaver's effects are build-time choices
+/// there, and writing a control or effect that was left out is a 501. Put
+/// together from GET /api/v1/capabilities (the whole device) or, on firmware
+/// without that, GET /orbit/api/v1/capabilities (OrbIt alone) — see
+/// `commands::get_capabilities`. Names are kept as the device gives them,
+/// for the same reason `ScreenSlot::control` is: the lists are expected to grow.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Capabilities {
+    pub controls: Vec<String>,
+    /// Only present when `screensaver` is one of `controls`.
+    pub screensaver_effects: Option<Vec<String>>,
+    /// Every widget in the firmware, in the order Left and Right step
+    /// through them. `None` when only OrbIt's own endpoint answered.
+    pub widgets: Option<Vec<WidgetCapabilities>>,
+}
+
+/// One widget's entry in GET /api/v1/capabilities (firmware source:
+/// `WebService::handleCapabilities` and each widget's
+/// `describeCapabilities`). Only OrbIt's entry has `controls`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct WidgetCapabilities {
+    /// The widget's `getName()`, e.g. "OrbIt" or "Clock".
+    pub name: String,
+    /// Whether it was the one on screen when the device answered.
+    pub showing: bool,
+    /// The clock's faces ("normal", "nixie", "custom"); other widgets have none.
+    pub faces: Option<Vec<String>>,
+    #[serde(skip_serializing)]
+    pub controls: Option<Vec<String>>,
+    #[serde(skip_serializing)]
+    pub screensaver_effects: Option<Vec<String>>,
+}
+
+/// GET /api/v1/capabilities as the device sends it.
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(default)]
+pub struct DeviceCapabilities {
+    pub widgets: Vec<WidgetCapabilities>,
+}
+
+impl DeviceCapabilities {
+    /// OrbIt's controls and effects lifted out of its widget entry, or
+    /// `None` if no widget lists any controls.
+    pub fn into_capabilities(self) -> Option<Capabilities> {
+        let orbit = self.widgets.iter().find(|w| w.controls.is_some())?;
+        Some(Capabilities {
+            controls: orbit.controls.clone().unwrap_or_default(),
+            screensaver_effects: orbit.screensaver_effects.clone(),
+            widgets: Some(self.widgets),
+        })
+    }
 }
 
 /// One of the orb's three physical buttons, as the core web service names

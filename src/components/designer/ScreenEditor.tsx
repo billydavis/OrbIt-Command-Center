@@ -59,6 +59,14 @@ export function ScreenEditor({ screen }: ScreenEditorProps) {
           value={control}
           onChange={(next) => setDraftSlot(screen, { control: next, params: {} })}
         />
+        {live.savedControl && (
+          <p className="field-hint">
+            This screen was showing {CONTROL_LABELS[live.savedControl as ControlType] ?? live.savedControl},
+            which this orb's firmware was built without. The orb is keeping its settings and
+            brings it back under firmware that has it. Applying anything else to this screen
+            replaces them.
+          </p>
+        )}
       </section>
 
       <section className="screen-editor-column">

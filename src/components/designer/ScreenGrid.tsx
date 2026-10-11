@@ -9,6 +9,7 @@ interface ScreenGridProps {
 
 export function ScreenGrid({ selected, onSelect }: ScreenGridProps) {
   const draft = useLayoutDraftStore((s) => s.draft);
+  const live = useLayoutDraftStore((s) => s.live);
   const isDirty = useLayoutDraftStore((s) => s.isDirty);
 
   return (
@@ -18,6 +19,7 @@ export function ScreenGrid({ selected, onSelect }: ScreenGridProps) {
           key={i}
           index={i}
           slot={draft[i] ? { screen: i, updatedAt: 0, ...draft[i] } : undefined}
+          keeping={draft[i]?.control === "blank" ? live[i]?.savedControl : undefined}
           selected={selected === i}
           dirty={isDirty(i)}
           onSelect={onSelect}

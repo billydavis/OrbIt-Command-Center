@@ -839,6 +839,23 @@ button.destructive:focus-visible {
   font-size: var(--text-sm);
 }
 
+/* The firmware's widgets in the order Left and Right step through them,
+   the one the orb is showing picked out. */
+.orb-widgets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem 0.6rem;
+}
+
+.orb-widgets span {
+  opacity: 0.6;
+}
+
+.orb-widgets .orb-widget-showing {
+  opacity: 1;
+  font-weight: var(--weight-semibold);
+}
+
 .orb-buttons-row {
   display: grid;
   grid-template-columns: 1fr 1.2fr 1fr;
@@ -1634,6 +1651,13 @@ button.destructive:focus-visible {
 .profile-row-apply:hover,
 .profile-row-apply:focus-visible {
   background-color: var(--color-surface-tint);
+}
+
+/* One this orb can't take: it holds a control the firmware was built
+   without. Still clickable, to say so. */
+.profile-row-unavailable .profile-row-apply,
+.flyout-profile-unavailable {
+  opacity: 0.5;
 }
 
 /* The profile the orb is showing: held in the hover look, with an edge,

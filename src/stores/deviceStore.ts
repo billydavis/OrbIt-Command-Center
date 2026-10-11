@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { connectDevice, disconnectDevice } from "../lib/tauriCommands";
-import { describeOrbitError, type ScreenSlot, type SystemInfo } from "../lib/types";
+import { connectDevice, disconnectDevice, getCapabilities } from "../lib/tauriCommands";
+import { describeOrbitError, type Capabilities, type ScreenSlot, type SystemInfo } from "../lib/types";
 
 type ConnectionStatus = "disconnected" | "connecting" | "connected" | "lost";
 
@@ -27,12 +27,20 @@ interface DeviceState {
   /** The connected firmware has no GET /api/v1/system, so `system` stays null. */
   systemUnsupported: boolean;
   /**
-   * The widget the orb is showing ("OrbIt", "Clock", ...), as of the last
-   * button press sent from here: the reply to a press is the only place the
-   * device says. Null until then, and after anything that could have
-   * changed it unseen (a reconnect, a restart).
+   * The widget the orb is showing ("OrbIt", "Clock", ...). Kept current by
+   * the heartbeat's status (`system.widget`), so it follows the orb's own
+   * buttons and cycle timer; a button press sent from here and the
+   * capabilities read on connecting set it sooner. Firmware that says only
+   * in reply to a press leaves it null until one is sent, and it can then
+   * have moved on unseen.
    */
   widget: string | null;
+  /**
+   * Which controls and screensaver effects the connected firmware was built
+   * with (see lib/capabilities.ts). Null while not connected, and on
+   * firmware that doesn't say, where all of them are.
+   */
+  capabilities: Capabilities | null;
 
   connect: (host: string, hostname?: string) => Promise<ScreenSlot[]>;
   disconnect: () => Promise<void>;
@@ -48,6 +56,26 @@ interface DeviceState {
   setSystem: (system: SystemInfo) => void;
   setSystemUnsupported: () => void;
   setWidget: (widget: string | null) => void;
+  /**
+   * Asks the orb again what it was built with: after it restarts (it may
+   * have been flashed with a different build) or refuses something as not
+   * built. Best-effort, and what's known stays if the orb doesn't answer.
+   */
+  refreshCapabilities: () => Promise<void>;
+}
+
+// A failure here shouldn't fail the connect it's part of: the orb answered
+// a moment ago, and offering everything is how the app behaved before.
+async function readCapabilities(): Promise<Capabilities | null> {
+  try {
+    return await getCapabilities();
+  } catch {
+    return null;
+  }
+}
+
+function showingWidget(capabilities: Capabilities | null): string | null {
+  return capabilities?.widgets?.find((w) => w.showing)?.name ?? null;
 }
 
 export const useDeviceStore = create<DeviceState>()(
@@ -60,13 +88,31 @@ export const useDeviceStore = create<DeviceState>()(
       system: null,
       systemUnsupported: false,
       widget: null,
+      capabilities: null,
 
       connect: async (host, hostname) => {
-        set({ status: "connecting", error: null, system: null, systemUnsupported: false, widget: null });
+        set({
+          status: "connecting",
+          error: null,
+          system: null,
+          systemUnsupported: false,
+          widget: null,
+          capabilities: null,
+        });
         try {
           const screens = await connectDevice(host);
+          // Before the status changes, so the workbench never opens offering
+          // a control the orb doesn't have.
+          const capabilities = await readCapabilities();
           const knownHostname = hostname ?? (host.toLowerCase().endsWith(".local") ? host.toLowerCase() : null);
-          set({ host, hostname: knownHostname, status: "connected", error: null });
+          set({
+            host,
+            hostname: knownHostname,
+            status: "connected",
+            error: null,
+            capabilities,
+            widget: showingWidget(capabilities),
+          });
           return screens;
         } catch (err) {
           set({ status: "disconnected", error: describeOrbitError(err) });
@@ -84,6 +130,7 @@ export const useDeviceStore = create<DeviceState>()(
           system: null,
           systemUnsupported: false,
           widget: null,
+          capabilities: null,
         });
       },
 
@@ -91,14 +138,21 @@ export const useDeviceStore = create<DeviceState>()(
         // Only meaningful once actually connected — an error before that point
         // is just a normal failed-connect-attempt, handled by connect() itself.
         if (get().status !== "connected") return;
-        set({ status: "lost", error: message, system: null, systemUnsupported: false, widget: null });
+        set({
+          status: "lost",
+          error: message,
+          system: null,
+          systemUnsupported: false,
+          widget: null,
+          capabilities: null,
+        });
       },
 
       setSystem: (system) => {
         // A late event from a probe that raced a disconnect shouldn't
         // repopulate status for a device that's no longer connected.
         if (get().status !== "connected") return;
-        set({ system });
+        set(system.widget ? { system, widget: system.widget } : { system });
       },
 
       setSystemUnsupported: () => {
@@ -107,6 +161,16 @@ export const useDeviceStore = create<DeviceState>()(
       },
 
       setWidget: (widget) => set({ widget }),
+
+      refreshCapabilities: async () => {
+        try {
+          const capabilities = await getCapabilities();
+          if (get().status !== "connected") return;
+          set({ capabilities, widget: showingWidget(capabilities) ?? get().widget });
+        } catch {
+          // Still whatever it was.
+        }
+      },
     }),
     {
       name: "orbit-device",

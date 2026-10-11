@@ -1,8 +1,8 @@
 use tauri::{AppHandle, State};
 
 use crate::device::{
-    BulkScreenSlotInput, ButtonPressed, CountdownAction, OrbButton, OrbitClient, OrbitError,
-    PressLength, ScreenSlot, ScreenSlotInput,
+    BulkScreenSlotInput, ButtonPressed, Capabilities, CountdownAction, OrbButton, OrbitClient,
+    OrbitError, PressLength, ScreenSlot, ScreenSlotInput,
 };
 use crate::discovery::{self, DiscoveredDevice};
 use crate::feeds::bindings::{self, ScreenBinding};
@@ -36,6 +36,33 @@ pub fn disconnect_device(state: State<'_, AppState>) {
 #[tauri::command]
 pub async fn discover_devices() -> Result<Vec<DiscoveredDevice>, OrbitError> {
     discovery::scan().await
+}
+
+/// What the connected firmware was built with, or `None` on firmware from
+/// before that was a choice, where everything is built. Asks the device as
+/// a whole first (widgets too); firmware without that endpoint 404s it, and
+/// OrbIt's own is asked instead, which knows the controls but no widgets.
+#[tauri::command]
+pub async fn get_capabilities(
+    state: State<'_, AppState>,
+) -> Result<Option<Capabilities>, OrbitError> {
+    with_device(&state, |client| async move {
+        match client.get_device_capabilities().await {
+            Ok(device) => {
+                if let Some(capabilities) = device.into_capabilities() {
+                    return Ok(Some(capabilities));
+                }
+            }
+            Err(OrbitError::DeviceRejected { status: 404, .. }) => {}
+            Err(err) => return Err(err),
+        }
+        match client.get_capabilities().await {
+            Ok(capabilities) => Ok(Some(capabilities)),
+            Err(OrbitError::DeviceRejected { status: 404, .. }) => Ok(None),
+            Err(err) => Err(err),
+        }
+    })
+    .await
 }
 
 #[tauri::command]

@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { applyProfile } from "../../lib/tauriCommands";
 import { describeOrbitError, type Profile } from "../../lib/types";
 import { useProfilesStore } from "../../stores/profilesStore";
+import { keptOn, listOf, notBuiltIn } from "../../lib/capabilities";
+import { useDeviceStore } from "../../stores/deviceStore";
+import { useLayoutDraftStore } from "../../stores/layoutDraftStore";
 
 interface FlyoutProfilesProps {
   onApplied: () => void;
@@ -15,6 +18,7 @@ export function FlyoutProfiles({ onApplied }: FlyoutProfilesProps) {
   const activeId = useProfilesStore((s) => s.activeId);
   const setActive = useProfilesStore((s) => s.setActive);
   const refresh = useProfilesStore((s) => s.refresh);
+  const capabilities = useDeviceStore((s) => s.capabilities);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,6 +28,26 @@ export function FlyoutProfiles({ onApplied }: FlyoutProfilesProps) {
   }, []);
 
   async function handleApply(profile: Profile) {
+    // The orb takes a profile whole or not at all (see ProfileCard.tsx).
+    const missing = listOf(notBuiltIn(profile.slots, capabilities));
+    if (missing) {
+      setError(`'${profile.name}' uses ${missing}, which this orb's firmware was built without.`);
+      return;
+    }
+    // Overwriting settings the orb is keeping needs a confirm, and the
+    // room for one is in the full window's rail.
+    const kept = listOf(
+      keptOn(
+        useLayoutDraftStore.getState().live,
+        profile.slots.map((slot) => slot.screen),
+      ),
+    );
+    if (kept) {
+      setError(
+        `'${profile.name}' would replace the ${kept} settings the orb is keeping. Apply it from the full window to confirm.`,
+      );
+      return;
+    }
     setBusyId(profile.id);
     setError(null);
     try {
@@ -47,7 +71,9 @@ export function FlyoutProfiles({ onApplied }: FlyoutProfilesProps) {
           <button
             key={profile.id}
             type="button"
-            className={`flyout-profile${profile.id === activeId ? " flyout-profile-active" : ""}`}
+            className={`flyout-profile${profile.id === activeId ? " flyout-profile-active" : ""}${
+              notBuiltIn(profile.slots, capabilities).length > 0 ? " flyout-profile-unavailable" : ""
+            }`}
             aria-pressed={profile.id === activeId}
             disabled={busyId !== null}
             title={`Apply ${profile.name}`}

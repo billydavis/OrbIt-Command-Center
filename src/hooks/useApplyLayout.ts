@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { applyLayout } from "../lib/tauriCommands";
+import { isNotBuiltError } from "../lib/capabilities";
 import { COLORS_UNSUPPORTED_MESSAGE, colorsNotApplied } from "../lib/rgb565";
 import { describeOrbitError, type BulkScreenSlotInput } from "../lib/types";
 import { useDeviceStore } from "../stores/deviceStore";
@@ -14,6 +15,7 @@ const APPLY_SUCCESS_AUTO_DISMISS_MS = 3_000;
  */
 export function useApplyLayout() {
   const connected = useDeviceStore((s) => s.status === "connected");
+  const refreshCapabilities = useDeviceStore((s) => s.refreshCapabilities);
   const draft = useLayoutDraftStore((s) => s.draft);
   const isDirty = useLayoutDraftStore((s) => s.isDirty);
   const patchLive = useLayoutDraftStore((s) => s.patchLive);
@@ -58,6 +60,9 @@ export function useApplyLayout() {
       setSuccessMessage(`Applied ${applied.length} screen${applied.length === 1 ? "" : "s"} to device`);
     } catch (err) {
       setError(describeOrbitError(err));
+      // The app offered something the orb doesn't have, so what it knows
+      // about the orb's build is out of date.
+      if (isNotBuiltError(err)) void refreshCapabilities();
     } finally {
       setApplying(false);
     }

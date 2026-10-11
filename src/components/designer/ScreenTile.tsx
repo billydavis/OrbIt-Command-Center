@@ -6,6 +6,8 @@ import { ScreenPreview } from "./ScreenPreview";
 interface ScreenTileProps {
   index: number;
   slot?: ScreenSlot;
+  /** The control the orb is keeping settings for on this (blank) screen; see ScreenSlot.savedControl. */
+  keeping?: string;
   selected: boolean;
   dirty: boolean;
   onSelect: (index: number) => void;
@@ -15,11 +17,16 @@ interface ScreenTileProps {
 // drawing of what that screen shows (ScreenPreview), with its index and
 // what's on it named underneath. A screen following a feed is named by the
 // feed, since that's what tells two gauges apart.
-export function ScreenTile({ index, slot, selected, dirty, onSelect }: ScreenTileProps) {
+export function ScreenTile({ index, slot, keeping, selected, dirty, onSelect }: ScreenTileProps) {
   const control = (slot?.control as ControlType | undefined) ?? "blank";
   const label = CONTROL_LABELS[control] ?? slot?.control ?? "Unassigned";
   const feeds = slot ? Object.values(boundFeeds(slot.params)) : [];
-  const description = feeds.length > 0 ? `${label}, following ${feeds.join(", ")}` : label;
+  const description =
+    feeds.length > 0
+      ? `${label}, following ${feeds.join(", ")}`
+      : keeping
+        ? `${label}, keeping ${CONTROL_LABELS[keeping as ControlType] ?? keeping} (not in this firmware)`
+        : label;
 
   return (
     <button

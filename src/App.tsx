@@ -45,6 +45,7 @@ function App() {
   const setSystem = useDeviceStore((s) => s.setSystem);
   const setSystemUnsupported = useDeviceStore((s) => s.setSystemUnsupported);
   const setWidget = useDeviceStore((s) => s.setWidget);
+  const refreshCapabilities = useDeviceStore((s) => s.refreshCapabilities);
 
   const showInTaskbar = useWindowStore((s) => s.showInTaskbar);
   useEffect(() => {
@@ -95,13 +96,15 @@ function App() {
       setRebootNotice(true);
       // It comes back up on its first widget, whatever it was showing.
       setWidget(null);
+      // And possibly as a different build, with other controls in it.
+      void refreshCapabilities();
     });
     return () => {
       unlistenSystem.then((f) => f());
       unlistenUnsupported.then((f) => f());
       unlistenRebooted.then((f) => f());
     };
-  }, [setSystem, setSystemUnsupported, setWidget]);
+  }, [setSystem, setSystemUnsupported, setWidget, refreshCapabilities]);
 
   // Feeds exist whether or not a device is connected (the sysMonitor
   // readings, anything another app pushes), so they're loaded once here and

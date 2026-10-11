@@ -26,7 +26,10 @@ export function SaveProfileDialog({ onClose }: SaveProfileDialogProps) {
     setSaving(true);
     setError(null);
     try {
-      const saved = await save(name.trim(), profileSlotsFromDraft(draft));
+      const saved = await save(
+        name.trim(),
+        profileSlotsFromDraft(draft, useLayoutDraftStore.getState().live),
+      );
       // The layout on screen is this profile now.
       setActive(saved.id);
       onClose();

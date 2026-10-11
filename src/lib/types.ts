@@ -7,6 +7,13 @@ export interface ScreenSlot {
   control: string;
   params: Record<string, unknown>;
   updatedAt: number;
+  /**
+   * On a blank screen only: the control its saved entry on the orb names,
+   * which this firmware was built without. The orb keeps that entry, and
+   * the screen comes back under a build with the control, until something
+   * is written to the screen.
+   */
+  savedControl?: string;
 }
 
 export interface ScreenSlotInput {
@@ -37,6 +44,31 @@ export type ControlType = (typeof CONTROL_TYPES)[number];
 
 export const SCREEN_COUNT = 5;
 
+/**
+ * What the connected firmware was built with: its widgets, OrbIt's controls
+ * and the screensaver's effects are build-time choices there. Mirrors
+ * src-tauri/src/device/model.rs::Capabilities.
+ */
+export interface Capabilities {
+  controls: string[];
+  /** Only there when "screensaver" is one of `controls`. */
+  screensaverEffects: string[] | null;
+  /**
+   * Every widget in the firmware, in the order Left and Right step through
+   * them. Null on firmware that only reports OrbIt's controls.
+   */
+  widgets: WidgetCapabilities[] | null;
+}
+
+export interface WidgetCapabilities {
+  /** As the orb names it, e.g. "OrbIt" or "Clock". */
+  name: string;
+  /** Whether it was the one on screen when the orb was asked. */
+  showing: boolean;
+  /** The clock's faces ("normal", "nixie", "custom"); null for other widgets. */
+  faces: string[] | null;
+}
+
 export type CountdownAction =
   | { action: "set"; durationSeconds: number; label?: string; color?: number }
   | { action: "pause" }
@@ -62,6 +94,8 @@ export interface SystemInfo {
   freeHeap: number;
   minFreeHeap: number;
   firmwareBuilt: string;
+  /** The widget on screen now, e.g. "OrbIt"; null on firmware that doesn't say here. */
+  widget: string | null;
 }
 
 /** The orb's three physical buttons (POST /api/v1/buttons/{left|ok|right}). */
@@ -108,6 +142,8 @@ export function describeOrbitError(err: unknown): string {
     case "Timeout":
       return "The orb took too long to answer. It may just be busy: wait a moment and try again.";
     case "DeviceRejected":
+      // 501: a control or screensaver effect left out of this firmware build.
+      if (e.message.status === 501) return `This orb's firmware can't do that: ${e.message.message}`;
       return `Device rejected request (${e.message.status}): ${e.message.message}`;
     case "Decode":
       return `Unexpected response from device: ${e.message}`;

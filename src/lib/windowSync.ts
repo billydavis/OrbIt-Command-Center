@@ -47,7 +47,7 @@ const SYNCED: SyncedStore[] = [
   {
     name: "device",
     api: useDeviceStore as unknown as StoreLike,
-    keys: ["host", "hostname", "status", "error", "system", "systemUnsupported", "widget"],
+    keys: ["host", "hostname", "status", "error", "system", "systemUnsupported", "widget", "capabilities"],
   },
   {
     name: "layout",

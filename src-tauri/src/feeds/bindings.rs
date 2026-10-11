@@ -173,7 +173,7 @@ mod tests {
     use serde_json::json;
 
     fn gauge_slot(params: serde_json::Value) -> ScreenSlot {
-        ScreenSlot { screen: 2, control: "gauge".into(), params, updated_at: 1 }
+        ScreenSlot { screen: 2, control: "gauge".into(), params, updated_at: 1, saved_control: None }
     }
 
     fn cpu_binding() -> ScreenBinding {
@@ -230,6 +230,7 @@ mod tests {
             control: "countdown".into(),
             params: json!({ "state": "running" }),
             updated_at: 1,
+            saved_control: None,
         };
         attach(&mut slot, Some(&cpu_binding()));
         assert_eq!(slot.params, json!({ "state": "running" }));
@@ -285,6 +286,7 @@ mod tests {
             control: "weather".into(),
             params: json!({ "element": "icon" }),
             updated_at: 1,
+            saved_control: None,
         };
         assert_eq!(pending_push(&slot, &cpu_binding(), &registry), None);
     }

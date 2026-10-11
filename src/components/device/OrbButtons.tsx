@@ -21,6 +21,8 @@ const PRESS_LENGTHS: { id: PressLength; label: string }[] = [
 const OK_DOES: Record<string, string> = {
   OrbIt: "OK does nothing on OrbIt.",
   Clock: "OK changes the clock face. A medium press switches 12/24-hour.",
+  // A clock built with only the one face (see the widget's `faces`).
+  "Clock:one-face": "OK has no other clock face to change to. A medium press switches 12/24-hour.",
   Weather: "OK switches between highs and lows.",
   Stock: "OK refreshes the prices.",
   Parqet: "OK shows the next holdings. A medium press changes the timeframe, a long one resets it.",
@@ -32,6 +34,11 @@ const OK_DOES: Record<string, string> = {
 // screens pictured in the app aren't what it's showing.
 export function OrbButtons() {
   const widget = useDeviceStore((s) => s.widget);
+  // The firmware's widgets, in the order Left and Right step through them;
+  // null on firmware that doesn't list them.
+  const widgets = useDeviceStore((s) => s.capabilities?.widgets ?? null);
+  const oneFace = widgets?.find((w) => w.name === "Clock")?.faces?.length === 1;
+  const okDoes = widget === null ? undefined : OK_DOES[widget === "Clock" && oneFace ? "Clock:one-face" : widget];
   const setWidget = useDeviceStore((s) => s.setWidget);
   const [press, setPress] = useState<PressLength>("short");
   const [busy, setBusy] = useState(false);
@@ -65,10 +72,20 @@ export function OrbButtons() {
 
   return (
     <div className="orb-buttons">
-      {widget && (
-        <p className="orb-showing">
-          Showing <strong>{widget}</strong>
+      {widgets && widgets.length > 0 ? (
+        <p className="orb-showing orb-widgets" aria-label={widget ? `Widgets, showing ${widget}` : "Widgets"}>
+          {widgets.map((w) => (
+            <span key={w.name} className={w.name === widget ? "orb-widget-showing" : undefined}>
+              {w.name}
+            </span>
+          ))}
         </p>
+      ) : (
+        widget && (
+          <p className="orb-showing">
+            Showing <strong>{widget}</strong>
+          </p>
+        )
       )}
 
       <div className="orb-buttons-row" role="group" aria-label="Orb buttons">
@@ -108,9 +125,12 @@ export function OrbButtons() {
       </div>
 
       <p className="field-hint">
-        {widget === null
-          ? "Left and Right change widget. The orb says which one it's showing after a press."
-          : OK_DOES[widget]}
+        {widgets?.length === 1
+          ? `${widgets[0].name} is this firmware's only widget, so Left and Right have nothing to change to. `
+          : widget === null
+            ? "Left and Right change widget. The orb says which one it's showing after a press."
+            : ""}
+        {okDoes}
       </p>
     </div>
   );

@@ -4,6 +4,8 @@ import { useLayoutDraftStore } from "../../stores/layoutDraftStore";
 import { useToastStore } from "../../stores/toastStore";
 import { applyProfile } from "../../lib/tauriCommands";
 import { profileSlotsFromDraft } from "../../lib/profileSlots";
+import { isNotBuiltError, keptOn, listOf, notBuiltIn } from "../../lib/capabilities";
+import { useDeviceStore } from "../../stores/deviceStore";
 import { describeOrbitError, SCREEN_COUNT, type Profile } from "../../lib/types";
 import { ScreenPreview } from "../designer/ScreenPreview";
 
@@ -13,7 +15,8 @@ interface ProfileCardProps {
 }
 
 // Deleting a profile, or replacing what it holds, can't be undone, so both
-// are gated behind an explicit confirm step. A "click again to confirm"
+// are gated behind an explicit confirm step. So is applying one over a
+// screen the orb is keeping settings for (ScreenSlot.savedControl). A "click again to confirm"
 // pattern on the *same* button would fail a plain double-click (both clicks
 // land before the state update even registers) — the confirm control below
 // renders at a different position than what opened it, and ignores input
@@ -32,7 +35,22 @@ export function ProfileCard({ profile, onApplied }: ProfileCardProps) {
   const dismissToast = useToastStore((s) => s.dismiss);
   // One toast per profile: its last failure, until the next thing tried on it.
   const toastKey = `profile-${profile.id}`;
-  const [confirming, setConfirming] = useState<"delete" | "update" | null>(null);
+  // What the profile holds that this orb's firmware was built without. The
+  // orb takes a profile whole or not at all, so one with any of it can't be
+  // applied here; it's dimmed, and says why when clicked.
+  const missing = useDeviceStore((s) => listOf(notBuiltIn(profile.slots, s.capabilities)));
+  const refreshCapabilities = useDeviceStore((s) => s.refreshCapabilities);
+  // Settings the orb is keeping, for controls this firmware lacks, on
+  // screens this profile writes to. Applying it throws them away.
+  const kept = useLayoutDraftStore((s) =>
+    listOf(
+      keptOn(
+        s.live,
+        profile.slots.map((slot) => slot.screen),
+      ),
+    ),
+  );
+  const [confirming, setConfirming] = useState<"delete" | "update" | "apply" | null>(null);
   const [confirmGuardElapsed, setConfirmGuardElapsed] = useState(false);
   const revertTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Where the row's right-click menu is open, in window coordinates.
@@ -84,7 +102,24 @@ export function ProfileCard({ profile, onApplied }: ProfileCardProps) {
     };
   }, [confirming]);
 
-  async function handleApply() {
+  // A click on the row, or Apply in its menu. `confirmed` is the second
+  // click, on the confirm that a profile overwriting kept settings gets.
+  async function handleApply(confirmed = false) {
+    if (confirmed && !confirmGuardElapsed) return;
+    setConfirming(null);
+    if (missing) {
+      showToast({
+        key: toastKey,
+        tone: "alert",
+        title: `Can't apply '${profile.name}' to this orb`,
+        detail: `It uses ${missing}, which this orb's firmware was built without.`,
+      });
+      return;
+    }
+    if (kept && !confirmed) {
+      setConfirming("apply");
+      return;
+    }
     setBusy("apply");
     dismissToast(toastKey);
     try {
@@ -98,6 +133,7 @@ export function ProfileCard({ profile, onApplied }: ProfileCardProps) {
         title: `Couldn't apply '${profile.name}'`,
         detail: describeOrbitError(err),
       });
+      if (isNotBuiltError(err)) void refreshCapabilities();
     } finally {
       setBusy(null);
     }
@@ -129,7 +165,8 @@ export function ProfileCard({ profile, onApplied }: ProfileCardProps) {
     setBusy("update");
     dismissToast(toastKey);
     try {
-      await update(profile.id, profileSlotsFromDraft(useLayoutDraftStore.getState().draft));
+      const { draft, live } = useLayoutDraftStore.getState();
+      await update(profile.id, profileSlotsFromDraft(draft, live));
       setActive(profile.id);
     } catch (err) {
       showToast({
@@ -156,7 +193,9 @@ export function ProfileCard({ profile, onApplied }: ProfileCardProps) {
           <span className="field-hint">
             {confirming === "delete"
               ? `Delete '${profile.name}'? Can't be undone.`
-              : `Replace '${profile.name}' with the layout as it is now? Can't be undone.`}
+              : confirming === "apply"
+                ? `Apply '${profile.name}'? It replaces the ${kept} settings the orb is keeping until its firmware has ${kept.includes(" ") ? "them" : "it"} again. Can't be undone.`
+                : `Replace '${profile.name}' with the layout as it is now? Can't be undone.`}
           </span>
           <div className="button-row">
             <button type="button" disabled={busy !== null} onClick={() => setConfirming(null)}>
@@ -170,6 +209,14 @@ export function ProfileCard({ profile, onApplied }: ProfileCardProps) {
                 onClick={handleDelete}
               >
                 Delete
+              </button>
+            ) : confirming === "apply" ? (
+              <button
+                type="button"
+                disabled={busy !== null || !confirmGuardElapsed}
+                onClick={() => void handleApply(true)}
+              >
+                Apply
               </button>
             ) : (
               <button
@@ -185,15 +232,21 @@ export function ProfileCard({ profile, onApplied }: ProfileCardProps) {
           </div>
         </div>
       ) : (
-        <div className={`profile-row${active ? " profile-row-active" : ""}`}>
+        <div
+          className={`profile-row${active ? " profile-row-active" : ""}${missing ? " profile-row-unavailable" : ""}`}
+        >
           <button
             type="button"
             className="profile-row-apply"
             aria-current={active ? "true" : undefined}
             disabled={busy !== null}
-            title={`Apply ${profile.name} (saved ${new Date(profile.createdAt).toLocaleString()}). Right-click for more.`}
+            title={
+              missing
+                ? `Uses ${missing}, which this orb's firmware was built without. Right-click for more.`
+                : `Apply ${profile.name} (saved ${new Date(profile.createdAt).toLocaleString()}). Right-click for more.`
+            }
             aria-haspopup="menu"
-            onClick={handleApply}
+            onClick={() => void handleApply()}
             onContextMenu={handleContextMenu}
           >
             <span className="profile-row-name">

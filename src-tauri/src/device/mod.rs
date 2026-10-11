@@ -5,6 +5,6 @@ mod model;
 pub use client::OrbitClient;
 pub use error::OrbitError;
 pub use model::{
-    BulkScreenSlotInput, ButtonPressed, CountdownAction, OrbButton, PressLength, ScreenSlot,
-    ScreenSlotInput, SystemInfo,
+    BulkScreenSlotInput, ButtonPressed, Capabilities, CountdownAction, OrbButton, PressLength,
+    ScreenSlot, ScreenSlotInput, SystemInfo,
 };

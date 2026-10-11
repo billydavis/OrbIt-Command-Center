@@ -1,5 +1,7 @@
 import { boundFeed, withBoundFeed } from "../../lib/feedBindings";
 import type { Feed } from "../../lib/types";
+import { controlBuilt } from "../../lib/capabilities";
+import { useDeviceStore } from "../../stores/deviceStore";
 import { useFeedsStore } from "../../stores/feedsStore";
 import { useLayoutDraftStore } from "../../stores/layoutDraftStore";
 
@@ -19,6 +21,8 @@ export function FeedsPanel({ screen }: FeedsPanelProps) {
   const feeds = useFeedsStore((s) => s.feeds);
   const draft = useLayoutDraftStore((s) => (screen === null ? undefined : s.draft[screen]));
   const replaceDraftSlot = useLayoutDraftStore((s) => s.replaceDraftSlot);
+  // A feed is shown on a gauge, which the orb's firmware may not have.
+  const canShow = useDeviceStore((s) => controlBuilt(s.capabilities, "gauge"));
 
   // Makes the selected screen a gauge following `feed` — as a draft, like
   // any other edit, so it still goes to the orb through Apply Layout. A
@@ -58,9 +62,9 @@ export function FeedsPanel({ screen }: FeedsPanelProps) {
               <button
                 type="button"
                 className={`feeds-panel-row${shown ? " feeds-panel-row-shown" : ""}`}
-                disabled={screen === null}
+                disabled={screen === null || !canShow}
                 aria-pressed={shown}
-                title={screen === null ? feed.id : `Show ${feed.id} on screen ${screen}`}
+                title={screen === null || !canShow ? feed.id : `Show ${feed.id} on screen ${screen}`}
                 onClick={() => showOnScreen(feed)}
               >
                 <span className="feeds-panel-id">{feed.id}</span>
@@ -73,10 +77,16 @@ export function FeedsPanel({ screen }: FeedsPanelProps) {
           );
         })}
       </ul>
-      {screen !== null && (
+      {!canShow ? (
         <p className="field-hint">
-          Click a feed to show it on screen <span className="mono-num">{screen}</span>.
+          This orb's firmware was built without Gauge, which is what shows a feed on a screen.
         </p>
+      ) : (
+        screen !== null && (
+          <p className="field-hint">
+            Click a feed to show it on screen <span className="mono-num">{screen}</span>.
+          </p>
+        )
       )}
     </>
   );

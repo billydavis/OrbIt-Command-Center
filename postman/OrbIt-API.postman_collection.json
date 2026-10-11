@@ -34,6 +34,21 @@
           "response": []
         },
         {
+          "name": "Get Capabilities",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "http://{{device_ip}}/orbit/api/v1/capabilities",
+              "protocol": "http",
+              "host": ["{{device_ip}}"],
+              "path": ["orbit", "api", "v1", "capabilities"]
+            },
+            "description": "Which controls and screensaver effects this firmware was built with. Writing one that isn't listed is a 501. 404 on firmware from before these were build-time options, where everything is built."
+          },
+          "response": []
+        },
+        {
           "name": "Get Screen by Index",
           "request": {
             "method": "GET",

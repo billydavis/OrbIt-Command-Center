@@ -4,8 +4,9 @@ use serde::de::DeserializeOwned;
 
 use super::error::OrbitError;
 use super::model::{
-    BulkScreenSlotInput, BulkScreensRequest, ButtonPressed, CountdownAction, DeviceErrorBody,
-    OrbButton, PressLength, ScreenSlot, ScreenSlotInput, ScreensResponse, SystemInfo,
+    BulkScreenSlotInput, BulkScreensRequest, ButtonPressed, Capabilities, CountdownAction,
+    DeviceCapabilities, DeviceErrorBody, OrbButton, PressLength, ScreenSlot, ScreenSlotInput,
+    ScreensResponse, SystemInfo,
 };
 
 // LAN-only device: a wrong/unreachable IP should fail fast in the UI rather
@@ -96,6 +97,24 @@ impl OrbitClient {
             press.as_str()
         );
         self.send_json(self.http.post(url)).await
+    }
+
+    /// Every widget the firmware was built with and each one's optional
+    /// parts — the core web service, not the OrbIt API. 404s on firmware
+    /// without it.
+    pub async fn get_device_capabilities(&self) -> Result<DeviceCapabilities, OrbitError> {
+        let url = format!("{}/api/v1/capabilities", self.root_url);
+        self.send_json(self.http.get(url)).await
+    }
+
+    /// Which controls and screensaver effects the firmware was built with,
+    /// from OrbIt's own endpoint: the same as its entry in
+    /// `get_device_capabilities`, for firmware that has only this one.
+    /// 404s on firmware from before they were build-time options, where
+    /// every one of them is built.
+    pub async fn get_capabilities(&self) -> Result<Capabilities, OrbitError> {
+        let url = format!("{}/capabilities", self.base_url);
+        self.send_json(self.http.get(url)).await
     }
 
     pub async fn get_screens(&self) -> Result<Vec<ScreenSlot>, OrbitError> {
@@ -218,6 +237,106 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn get_capabilities_parses_the_documented_response_shape() {
+        let server = MockServer::start().await;
+        // The example from docs/orbit-api.md's GET /capabilities section.
+        let body = r#"{
+          "controls": ["blank", "time", "analogClock", "gauge", "sysMonitor", "screensaver", "countdown", "weather"],
+          "screensaverEffects": ["asteroids", "radar"]
+        }"#;
+        Mock::given(method("GET"))
+            .and(path("/orbit/api/v1/capabilities"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(body, "application/json"))
+            .mount(&server)
+            .await;
+
+        let client = OrbitClient::with_base_url(format!("{}/orbit/api/v1", server.uri()));
+        let capabilities = client.get_capabilities().await.expect("request should succeed");
+
+        assert_eq!(capabilities.controls.len(), 8);
+        assert!(!capabilities.controls.iter().any(|c| c == "ticker"));
+        assert_eq!(
+            capabilities.screensaver_effects,
+            Some(vec!["asteroids".to_string(), "radar".to_string()])
+        );
+    }
+
+    #[tokio::test]
+    async fn get_device_capabilities_lists_the_widgets_and_carries_orbits_controls() {
+        let server = MockServer::start().await;
+        // The shape WebService::handleCapabilities sends.
+        let body = r#"{
+          "firmwareBuilt": "Oct 11 2026 12:42:26",
+          "screens": 5,
+          "widgets": [
+            { "name": "Clock", "showing": true, "faces": ["normal", "nixie"] },
+            { "name": "Weather", "showing": false },
+            { "name": "OrbIt", "showing": false, "page": "/orbit/", "api": "/orbit/api/v1/screens",
+              "controls": ["blank", "time", "screensaver"], "screensaverEffects": ["radar"] }
+          ]
+        }"#;
+        Mock::given(method("GET"))
+            .and(path("/api/v1/capabilities"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(body, "application/json"))
+            .mount(&server)
+            .await;
+
+        let client = OrbitClient::with_base_url(format!("{}/orbit/api/v1", server.uri()));
+        let capabilities = client
+            .get_device_capabilities()
+            .await
+            .expect("request should succeed")
+            .into_capabilities()
+            .expect("OrbIt's entry lists its controls");
+
+        assert_eq!(capabilities.controls, ["blank", "time", "screensaver"]);
+        assert_eq!(capabilities.screensaver_effects, Some(vec!["radar".to_string()]));
+        let widgets = capabilities.widgets.expect("widgets should be listed");
+        assert_eq!(widgets.iter().map(|w| w.name.as_str()).collect::<Vec<_>>(), ["Clock", "Weather", "OrbIt"]);
+        assert!(widgets[0].showing);
+        assert_eq!(widgets[0].faces, Some(vec!["normal".to_string(), "nixie".to_string()]));
+        assert_eq!(widgets[1].faces, None);
+    }
+
+    #[tokio::test]
+    async fn get_capabilities_leaves_out_the_effects_without_the_screensaver() {
+        let server = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/orbit/api/v1/capabilities"))
+            .respond_with(
+                ResponseTemplate::new(200)
+                    .set_body_raw(r#"{"controls":["blank","time"]}"#, "application/json"),
+            )
+            .mount(&server)
+            .await;
+
+        let client = OrbitClient::with_base_url(format!("{}/orbit/api/v1", server.uri()));
+        let capabilities = client.get_capabilities().await.expect("request should succeed");
+
+        assert_eq!(capabilities.screensaver_effects, None);
+    }
+
+    #[tokio::test]
+    async fn get_screens_reads_the_control_a_blank_screen_is_keeping() {
+        let server = MockServer::start().await;
+        let body = r#"{ "screens": [
+          { "screen": 0, "control": "blank", "params": {}, "updatedAt": 0, "savedControl": "ticker" },
+          { "screen": 1, "control": "blank", "params": {}, "updatedAt": 0 }
+        ] }"#;
+        Mock::given(method("GET"))
+            .and(path("/orbit/api/v1/screens"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(body, "application/json"))
+            .mount(&server)
+            .await;
+
+        let client = OrbitClient::with_base_url(format!("{}/orbit/api/v1", server.uri()));
+        let screens = client.get_screens().await.expect("request should succeed");
+
+        assert_eq!(screens[0].saved_control.as_deref(), Some("ticker"));
+        assert_eq!(screens[1].saved_control, None);
+    }
+
+    #[tokio::test]
     async fn bulk_post_sends_only_the_given_screens() {
         let server = MockServer::start().await;
         Mock::given(method("POST"))
@@ -334,7 +453,7 @@ mod tests {
     async fn get_system_hits_the_core_endpoint_outside_the_orbit_api() {
         let server = MockServer::start().await;
         // Same shape as a real device response (values anonymised).
-        let body = r#"{"hostname":"info-orbs.local","ip":"192.168.4.56","mac":"AA:BB:CC:DD:EE:FF","ssid":"home","rssi":-58,"uptimeSeconds":767,"freeHeap":123456,"minFreeHeap":98765,"firmwareBuilt":"Sep 20 2026 14:03:11"}"#;
+        let body = r#"{"hostname":"info-orbs.local","ip":"192.168.4.56","mac":"AA:BB:CC:DD:EE:FF","ssid":"home","rssi":-58,"uptimeSeconds":767,"freeHeap":123456,"minFreeHeap":98765,"firmwareBuilt":"Sep 20 2026 14:03:11","widget":"OrbIt"}"#;
         Mock::given(method("GET"))
             .and(path("/api/v1/system"))
             .respond_with(ResponseTemplate::new(200).set_body_raw(body, "application/json"))
@@ -348,6 +467,7 @@ mod tests {
         assert_eq!(info.rssi, -58);
         assert_eq!(info.uptime_seconds, 767);
         assert_eq!(info.firmware_built, "Sep 20 2026 14:03:11");
+        assert_eq!(info.widget.as_deref(), Some("OrbIt"));
     }
 
     #[tokio::test]
