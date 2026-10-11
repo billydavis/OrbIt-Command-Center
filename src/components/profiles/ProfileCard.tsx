@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useProfilesStore } from "../../stores/profilesStore";
 import { useLayoutDraftStore } from "../../stores/layoutDraftStore";
+import { useToastStore } from "../../stores/toastStore";
 import { applyProfile } from "../../lib/tauriCommands";
 import { profileSlotsFromDraft } from "../../lib/profileSlots";
 import { describeOrbitError, SCREEN_COUNT, type Profile } from "../../lib/types";
@@ -27,7 +28,10 @@ export function ProfileCard({ profile, onApplied }: ProfileCardProps) {
   const active = useProfilesStore((s) => s.activeId === profile.id);
   const setActive = useProfilesStore((s) => s.setActive);
   const [busy, setBusy] = useState<"apply" | "delete" | "update" | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const showToast = useToastStore((s) => s.show);
+  const dismissToast = useToastStore((s) => s.dismiss);
+  // One toast per profile: its last failure, until the next thing tried on it.
+  const toastKey = `profile-${profile.id}`;
   const [confirming, setConfirming] = useState<"delete" | "update" | null>(null);
   const [confirmGuardElapsed, setConfirmGuardElapsed] = useState(false);
   const revertTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -82,14 +86,18 @@ export function ProfileCard({ profile, onApplied }: ProfileCardProps) {
 
   async function handleApply() {
     setBusy("apply");
-    setError(null);
+    dismissToast(toastKey);
     try {
       await applyProfile(profile.id);
       setActive(profile.id);
       onApplied();
     } catch (err) {
-      const message = describeOrbitError(err);
-      setError(message);
+      showToast({
+        key: toastKey,
+        tone: "alert",
+        title: `Couldn't apply '${profile.name}'`,
+        detail: describeOrbitError(err),
+      });
     } finally {
       setBusy(null);
     }
@@ -99,11 +107,16 @@ export function ProfileCard({ profile, onApplied }: ProfileCardProps) {
     if (!confirmGuardElapsed) return;
     setConfirming(null);
     setBusy("delete");
-    setError(null);
+    dismissToast(toastKey);
     try {
       await remove(profile.id);
     } catch (err) {
-      setError(String(err));
+      showToast({
+        key: toastKey,
+        tone: "alert",
+        title: `Couldn't delete '${profile.name}'`,
+        detail: String(err),
+      });
       setBusy(null);
     }
   }
@@ -114,12 +127,17 @@ export function ProfileCard({ profile, onApplied }: ProfileCardProps) {
   async function handleUpdate() {
     setConfirming(null);
     setBusy("update");
-    setError(null);
+    dismissToast(toastKey);
     try {
       await update(profile.id, profileSlotsFromDraft(useLayoutDraftStore.getState().draft));
       setActive(profile.id);
     } catch (err) {
-      setError(String(err));
+      showToast({
+        key: toastKey,
+        tone: "alert",
+        title: `Couldn't update '${profile.name}'`,
+        detail: String(err),
+      });
     } finally {
       setBusy(null);
     }
@@ -246,7 +264,6 @@ export function ProfileCard({ profile, onApplied }: ProfileCardProps) {
           </button>
         </div>
       )}
-      {error && <p className="field-error">{error}</p>}
     </div>
   );
 }

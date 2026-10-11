@@ -11,6 +11,8 @@ import { FeedsPanel } from "./components/feeds/FeedsPanel";
 import { OrbButtons } from "./components/device/OrbButtons";
 import { RailSection } from "./components/rail/RailSection";
 import { StatusBar } from "./components/status/StatusBar";
+import { Toast } from "./components/status/Toast";
+import { ToastStack } from "./components/status/ToastStack";
 import { useApplyLayout } from "./hooks/useApplyLayout";
 import { useApplyTheme } from "./hooks/useApplyTheme";
 import { getScreens, setShowInTaskbar } from "./lib/tauriCommands";
@@ -26,6 +28,7 @@ import { useLayoutDraftStore } from "./stores/layoutDraftStore";
 import { useDeviceStore } from "./stores/deviceStore";
 import { useFeedsStore } from "./stores/feedsStore";
 import { useProfilesStore } from "./stores/profilesStore";
+import { useToastStore } from "./stores/toastStore";
 import { useWindowStore } from "./stores/windowStore";
 import "./App.css";
 
@@ -54,7 +57,8 @@ function App() {
   const refreshFeeds = useFeedsStore((s) => s.refresh);
   const setFeeds = useFeedsStore((s) => s.setFeeds);
   const [refreshing, setRefreshing] = useState(false);
-  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const showToast = useToastStore((s) => s.show);
+  const dismissToast = useToastStore((s) => s.dismiss);
   const layout = useApplyLayout();
   const [backgroundError, setBackgroundError] = useState<string | null>(null);
   const [rebootNotice, setRebootNotice] = useState(false);
@@ -133,11 +137,16 @@ function App() {
 
   async function handleRefresh() {
     setRefreshing(true);
-    setRefreshError(null);
+    dismissToast("refresh");
     try {
       syncFromDevice(await getScreens());
     } catch (err) {
-      setRefreshError(describeOrbitError(err));
+      showToast({
+        key: "refresh",
+        tone: "alert",
+        title: "Couldn't read the layout from the orb",
+        detail: describeOrbitError(err),
+      });
     } finally {
       setRefreshing(false);
     }
@@ -177,60 +186,52 @@ function App() {
   }, [draft, anyDirty, connected, setActiveProfile]);
 
   // Notices about what just happened (a failed background push, an apply
-  // result, a restarted orb). Shown at the top of whichever layout is up.
-  const banners = (
-    <>
-      {backgroundError && (
-        <p className="connection-settings-error background-error">
-          Background push: {backgroundError}
-          <button type="button" onClick={() => setBackgroundError(null)}>
-            Dismiss
-          </button>
-        </p>
+  // result, a restarted orb). They float over the top-right corner of
+  // whichever layout is up, under the Apply button, instead of taking a
+  // row of it — so one arriving or leaving doesn't move what's beneath.
+  // These are the ones this component keeps; the rest of the app adds its
+  // own through the toast store.
+  const toasts = (
+    <ToastStack>
+      {layout.error && (
+        <Toast tone="alert" title="Couldn't apply the layout" onDismiss={layout.dismissError}>
+          {layout.error}
+        </Toast>
       )}
 
       {layout.warning && (
-        <p className="connection-settings-error background-error" role="alert">
+        <Toast tone="alert" title="Custom colors weren't applied" onDismiss={layout.dismissWarning}>
           {layout.warning}
-          <button type="button" onClick={layout.dismissWarning}>
-            Dismiss
-          </button>
-        </p>
+        </Toast>
+      )}
+
+      {backgroundError && (
+        <Toast tone="alert" title="A background push failed" onDismiss={() => setBackgroundError(null)}>
+          {backgroundError}
+        </Toast>
       )}
 
       {layout.successMessage && (
-        <p className="apply-success-banner background-error">
-          ✓ {layout.successMessage}
-          <button type="button" onClick={layout.dismissSuccess}>
-            Dismiss
-          </button>
-        </p>
+        <Toast tone="ok" title={layout.successMessage} onDismiss={layout.dismissSuccess} />
       )}
 
       {rebootNotice && connected && (
-        <p className="apply-success-banner background-error" role="status">
-          The orb restarted and restored its saved layout. Countdowns aren't saved, so any were cleared.
-          <button
-            type="button"
-            onClick={() => {
+        <Toast
+          tone="ok"
+          title="The orb restarted"
+          action={{
+            label: "Refresh",
+            onClick: () => {
               setRebootNotice(false);
               void handleRefresh();
-            }}
-          >
-            Refresh
-          </button>
-        </p>
+            },
+          }}
+          onDismiss={() => setRebootNotice(false)}
+        >
+          It restored its saved layout. Countdowns aren't saved, so any were cleared.
+        </Toast>
       )}
-
-      {layout.error && (
-        <p className="connection-settings-error background-error" role="alert">
-          Couldn't apply: {layout.error}
-          <button type="button" onClick={layout.dismissError}>
-            Dismiss
-          </button>
-        </p>
-      )}
-    </>
+    </ToastStack>
   );
 
   return (
@@ -295,7 +296,6 @@ function App() {
       <div className={`app-body ${connected ? "app-body-workbench" : "app-body-centered"}`}>
         {!connected ? (
           <>
-            {banners}
             <ConnectionSettings onConnected={handleConnected} />
             <button type="button" className="feeds-open-button" onClick={() => setFeedsOpen(true)}>
               Feeds
@@ -325,9 +325,6 @@ function App() {
             </aside>
 
             <div className="workbench-main">
-              {banners}
-              {refreshError && <p className="connection-settings-error">{refreshError}</p>}
-
               <ScreenGrid selected={selected} onSelect={setSelected} />
 
               {selected !== null && <ScreenEditor screen={selected} />}
@@ -337,6 +334,8 @@ function App() {
       </div>
 
       <FeedsDrawer open={feedsOpen} onClose={() => setFeedsOpen(false)} />
+
+      {toasts}
 
       {connected && <StatusBar />}
     </main>

@@ -146,7 +146,7 @@ colors, each reserved for exactly one meaning. Nothing here is decorative.
 - **Pending Amber** (`oklch(68% 0.15 70)`, dark `oklch(76% 0.15 70)`): the
   screen-tile dirty dot only. Means "this screen has unapplied edits."
 - **Alert Red** (`oklch(55% 0.19 25)`, dark `oklch(70% 0.17 25)`): form
-  validation errors, connection errors, and the background-error banner.
+  validation errors, connection errors, and an error toast (its wash, edge, icon and title).
 
 ### Neutral
 - **Ink** (`oklch(20% 0.006 230)`, dark-mode text `oklch(93% 0.004 230)`):

@@ -4,6 +4,7 @@ import { ScreenEditor } from "../designer/ScreenEditor";
 import { ScreenGrid } from "../designer/ScreenGrid";
 import { FeedsPanel } from "../feeds/FeedsPanel";
 import { FlyoutProfiles } from "./FlyoutProfiles";
+import { ToastStack } from "../status/ToastStack";
 import { useApplyLayout } from "../../hooks/useApplyLayout";
 import { useApplyTheme } from "../../hooks/useApplyTheme";
 import { formatRssi, SIGNAL_BARS, signalQuality } from "../../lib/systemFormat";
@@ -169,6 +170,10 @@ export function Flyout() {
           </footer>
         </>
       )}
+
+      {/* For what the screen editor reports: it's the main window's too,
+          and says it in toasts. */}
+      <ToastStack />
     </main>
   );
 }

@@ -7,6 +7,7 @@ import { countdownSetSchema } from "../../lib/controlSchemas";
 import { describeOrbitError, type ScreenSlot } from "../../lib/types";
 import { ColorInput } from "../shared/ColorInput";
 import { COLORS, COLORS_UNSUPPORTED_MESSAGE, colorsNotApplied } from "../../lib/rgb565";
+import { useToastStore } from "../../stores/toastStore";
 
 // See TimeForm.tsx for why this uses the schema's input type.
 type CountdownSetFormValues = z.input<typeof countdownSetSchema>;
@@ -24,7 +25,8 @@ interface CountdownFormProps {
 // countdown_action directly and immediately, against live device state.
 export function CountdownForm({ screen, liveSlot, onApplied }: CountdownFormProps) {
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const showToast = useToastStore((s) => s.show);
+  const dismissToast = useToastStore((s) => s.dismiss);
 
   const isLiveCountdown = liveSlot.control === "countdown";
   const state = isLiveCountdown ? (liveSlot.params.state as string | undefined) : undefined;
@@ -34,16 +36,25 @@ export function CountdownForm({ screen, liveSlot, onApplied }: CountdownFormProp
 
   async function runAction(action: Parameters<typeof callCountdownAction>[1]) {
     setPending(true);
-    setError(null);
+    dismissToast(`countdown-${screen}`);
     try {
       const slot = await callCountdownAction(screen, action);
       onApplied(slot);
       if (colorsNotApplied({ control: "countdown", params: action }, slot)) {
-        setError(COLORS_UNSUPPORTED_MESSAGE);
+        showToast({
+          key: `countdown-${screen}`,
+          tone: "alert",
+          title: "Custom colors weren't applied",
+          detail: COLORS_UNSUPPORTED_MESSAGE,
+        });
       }
     } catch (err) {
-      const message = describeOrbitError(err);
-      setError(message);
+      showToast({
+        key: `countdown-${screen}`,
+        tone: "alert",
+        title: "Couldn't change the countdown",
+        detail: describeOrbitError(err),
+      });
     } finally {
       setPending(false);
     }
@@ -80,22 +91,19 @@ export function CountdownForm({ screen, liveSlot, onApplied }: CountdownFormProp
             Stop (restore previous screen)
           </button>
         </div>
-        {error && <p className="field-error">{error}</p>}
       </div>
     );
   }
 
-  return <CountdownSetForm screen={screen} pending={pending} error={error} onStart={runAction} />;
+  return <CountdownSetForm screen={screen} pending={pending} onStart={runAction} />;
 }
 
 function CountdownSetForm({
   pending,
-  error,
   onStart,
 }: {
   screen: number;
   pending: boolean;
-  error: string | null;
   onStart: (action: Parameters<typeof callCountdownAction>[1]) => void;
 }) {
   const { register, handleSubmit, setValue, watch } = useForm<CountdownSetFormValues>({
@@ -132,7 +140,6 @@ function CountdownSetForm({
       <button type="submit" disabled={pending}>
         Start Countdown
       </button>
-      {error && <p className="field-error">{error}</p>}
     </form>
   );
 }

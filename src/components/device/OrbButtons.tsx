@@ -7,6 +7,7 @@ import {
   type PressLength,
 } from "../../lib/types";
 import { useDeviceStore } from "../../stores/deviceStore";
+import { useToastStore } from "../../stores/toastStore";
 
 const PRESS_LENGTHS: { id: PressLength; label: string }[] = [
   { id: "short", label: "Short" },
@@ -34,11 +35,12 @@ export function OrbButtons() {
   const setWidget = useDeviceStore((s) => s.setWidget);
   const [press, setPress] = useState<PressLength>("short");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const showToast = useToastStore((s) => s.show);
+  const dismissToast = useToastStore((s) => s.dismiss);
 
   async function handlePress(button: OrbButton) {
     setBusy(true);
-    setError(null);
+    dismissToast("orb-button");
     // Medium and Long are for the next press only: the choice goes back to
     // Short as soon as a button is pressed, whether or not the press lands.
     setPress("short");
@@ -47,11 +49,15 @@ export function OrbButtons() {
       setWidget(pressed.widget);
     } catch (err) {
       const e = err as OrbitError;
-      if (e?.kind === "DeviceRejected" && e.message.status === 404) {
-        setError("This orb's firmware doesn't take button presses from the app.");
-      } else {
-        setError(describeOrbitError(err));
-      }
+      showToast({
+        key: "orb-button",
+        tone: "alert",
+        title: "The button press didn't go through",
+        detail:
+          e?.kind === "DeviceRejected" && e.message.status === 404
+            ? "This orb's firmware doesn't take button presses from the app."
+            : describeOrbitError(err),
+      });
     } finally {
       setBusy(false);
     }
@@ -101,17 +107,11 @@ export function OrbButtons() {
         ))}
       </div>
 
-      {error ? (
-        <p className="field-error" role="alert">
-          {error}
-        </p>
-      ) : (
-        <p className="field-hint">
-          {widget === null
-            ? "Left and Right change widget. The orb says which one it's showing after a press."
-            : OK_DOES[widget]}
-        </p>
-      )}
+      <p className="field-hint">
+        {widget === null
+          ? "Left and Right change widget. The orb says which one it's showing after a press."
+          : OK_DOES[widget]}
+      </p>
     </div>
   );
 }

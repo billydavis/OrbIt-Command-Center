@@ -4,6 +4,7 @@ import { boundFeeds } from "../../lib/feedBindings";
 import { useDeviceStore } from "../../stores/deviceStore";
 import { useFeedsStore } from "../../stores/feedsStore";
 import { useLayoutDraftStore } from "../../stores/layoutDraftStore";
+import { useToastStore } from "../../stores/toastStore";
 
 interface FeedsDrawerProps {
   open: boolean;
@@ -40,13 +41,14 @@ export function FeedsDrawer({ open, onClose }: FeedsDrawerProps) {
   const connected = useDeviceStore((s) => s.status === "connected");
   const [now, setNow] = useState(() => Date.now());
   const [copied, setCopied] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const showToast = useToastStore((s) => s.show);
+  const dismissToast = useToastStore((s) => s.dismiss);
 
   useEffect(() => {
     if (!open) return;
     closeButtonRef.current?.focus();
     void refresh();
-    setDeleteError(null);
+    dismissToast("feed-delete");
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") onClose();
@@ -59,7 +61,7 @@ export function FeedsDrawer({ open, onClose }: FeedsDrawerProps) {
       document.removeEventListener("keydown", handleKeyDown);
       clearInterval(clock);
     };
-  }, [open, onClose, refresh]);
+  }, [open, onClose, refresh, dismissToast]);
 
   // Which screens follow each feed, from what's applied on the device (not
   // unsaved drafts) — "showing" should mean it's really on a screen.
@@ -88,12 +90,17 @@ export function FeedsDrawer({ open, onClose }: FeedsDrawerProps) {
   }
 
   async function handleDelete(id: string) {
-    setDeleteError(null);
+    dismissToast("feed-delete");
     try {
       await deleteFeed(id);
       await refresh();
     } catch (err) {
-      setDeleteError(`Could not delete ${id}: ${String(err)}`);
+      showToast({
+        key: "feed-delete",
+        tone: "alert",
+        title: `Couldn't delete ${id}`,
+        detail: String(err),
+      });
     }
   }
 
@@ -152,12 +159,6 @@ export function FeedsDrawer({ open, onClose }: FeedsDrawerProps) {
             <p className="field-hint">Starting the feed endpoint…</p>
           )}
         </div>
-
-        {deleteError && (
-          <p className="field-error" role="alert">
-            {deleteError}
-          </p>
-        )}
 
         {feeds.length === 0 && missing.length === 0 ? (
           <p className="field-hint">No feeds yet.</p>

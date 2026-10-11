@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLayoutDraftStore } from "../../stores/layoutDraftStore";
+import { useToastStore } from "../../stores/toastStore";
 import { ControlPicker } from "./ControlPicker";
 import { CONTROL_FORMS } from "../control-forms";
 import { CountdownForm } from "../control-forms/CountdownForm";
@@ -22,7 +23,8 @@ export function ScreenEditor({ screen }: ScreenEditorProps) {
   const isDirty = useLayoutDraftStore((s) => s.isDirty(screen));
   const patchLive = useLayoutDraftStore((s) => s.patchLive);
   const [refreshing, setRefreshing] = useState(false);
-  const [refreshError, setRefreshError] = useState<string | null>(null);
+  const showToast = useToastStore((s) => s.show);
+  const dismissToast = useToastStore((s) => s.dismiss);
 
   if (!draft || !live) return null;
 
@@ -31,13 +33,17 @@ export function ScreenEditor({ screen }: ScreenEditorProps) {
 
   async function handleRefreshTicker() {
     setRefreshing(true);
-    setRefreshError(null);
+    dismissToast(`ticker-${screen}`);
     try {
       const slot = await refreshTicker(screen);
       patchLive(slot);
     } catch (err) {
-      const message = describeOrbitError(err);
-      setRefreshError(message);
+      showToast({
+        key: `ticker-${screen}`,
+        tone: "alert",
+        title: "Couldn't refresh the ticker",
+        detail: describeOrbitError(err),
+      });
     } finally {
       setRefreshing(false);
     }
@@ -103,7 +109,6 @@ export function ScreenEditor({ screen }: ScreenEditorProps) {
             <button type="button" disabled={refreshing} onClick={handleRefreshTicker}>
               {refreshing ? "Refreshing…" : "Refresh Now"}
             </button>
-            {refreshError && <p className="field-error">{refreshError}</p>}
           </div>
         )}
       </section>

@@ -517,19 +517,145 @@ button.destructive:focus-visible {
   font-size: var(--text-sm);
 }
 
-.background-error {
-  width: 100%;
-  max-width: 420px;
+/* Notices about what just happened (Toast), stacked in the window's
+   top-right corner just under the header, where the Apply button that
+   causes most of them is. Fixed and above everything, drawers and the
+   settings menu included, so they take no room in the layout. The stack
+   itself lets clicks through; only the toasts in it catch them. */
+.toast-stack {
+  position: fixed;
+  top: calc(var(--header-height) + 0.75rem);
+  right: 1rem;
+  z-index: 40;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: min(360px, calc(100vw - 2rem));
+  pointer-events: none;
 }
 
-.apply-success-banner {
+/* A floating surface like the settings menu's panel, and shadowed the
+   same way. A confirmation is quiet: only its icon takes the tone. An
+   error isn't (see .toast-alert). */
+.toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.7rem 0.6rem 0.7rem 0.8rem;
+  border-radius: 8px;
+  text-align: left;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-divider);
+  box-shadow: 0 4px 16px var(--color-shadow);
+  user-select: text;
+  animation: toast-in 0.2s ease-out;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.4rem);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast {
+    animation: none;
+  }
+}
+
+.toast-icon {
+  flex-shrink: 0;
+  width: 1.375rem;
+  height: 1.375rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* An error reads as one before any of it is read: the surface washed with
+   the alert color and edged in it, a solid badge for the icon and the
+   title in red. The detail stays in the text color, so a long message is
+   as readable as anything else. */
+.toast-alert {
+  background-color: color-mix(in oklch, var(--color-alert) 9%, var(--color-surface));
+  border-color: color-mix(in oklch, var(--color-alert) 60%, transparent);
+}
+
+.toast-alert .toast-icon {
+  color: var(--color-alert);
+}
+
+.toast-alert .toast-icon circle {
+  fill: currentColor;
+}
+
+.toast-alert .toast-icon path {
+  stroke: var(--color-surface);
+}
+
+.toast-alert .toast-title {
+  color: var(--color-alert);
+}
+
+.toast-alert .toast-detail {
+  opacity: 1;
+}
+
+.toast-ok .toast-icon {
   color: var(--color-live);
+}
+
+.toast-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.toast-title,
+.toast-detail {
+  margin: 0;
   font-size: var(--text-sm);
+  line-height: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+.toast-title {
+  font-weight: var(--weight-semibold);
+}
+
+.toast-detail {
+  margin-top: 0.15rem;
+  opacity: 0.8;
+}
+
+.toast-action {
+  margin-top: 0.5rem;
+  font-size: var(--text-xs);
+  padding: 0.2em 0.7em;
+}
+
+/* Flat until hovered: it's the way out of the toast, not a control on it. */
+.toast-dismiss {
+  flex-shrink: 0;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: -0.125rem;
+  background-color: transparent;
+  box-shadow: none;
+  opacity: 0.7;
+}
+
+.toast-dismiss:hover,
+.toast-dismiss:focus-visible {
+  opacity: 1;
+}
+
+.toast-dismiss svg {
+  width: 0.9rem;
+  height: 0.9rem;
 }
 
 .connected-status-dot {
