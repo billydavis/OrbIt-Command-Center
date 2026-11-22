@@ -20,15 +20,14 @@ export function controlBuilt(capabilities: Capabilities | null, control: string)
 
 /**
  * Whether the connected board has physical buttons to press — the rail's
- * Orb section is pointless without them. info-orbs' own `GET
- * /api/v1/system` never sets `firmware`; a client like Orbit Station that
- * has no buttons (and no widget system for them to drive) does. True until
- * proven otherwise (unknown firmware, or no reading yet): info-orbs is what
- * this app is mostly used with, and it has buttons. A future buttonless
+ * Orb section is pointless without them. False until proven otherwise (no
+ * reading yet, or firmware that sets `firmware`): a client like Orbit
+ * Station that has no buttons (and no widget system for them to drive) sets
+ * it; info-orbs' own `GET /api/v1/system` never does. A future buttonless
  * client this convention doesn't hold for would need its own check here.
  */
 export function hasButtons(system: SystemInfo | null): boolean {
-  return system?.firmware == null;
+  return system !== null && system.firmware == null;
 }
 
 /** The controls to offer, in the app's own order. */
