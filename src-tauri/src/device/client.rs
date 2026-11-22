@@ -497,6 +497,25 @@ mod tests {
         assert_eq!(info.uptime_seconds, 767);
         assert_eq!(info.firmware_built, "Sep 20 2026 14:03:11");
         assert_eq!(info.widget.as_deref(), Some("OrbIt"));
+        assert_eq!(info.firmware, None);
+    }
+
+    #[tokio::test]
+    async fn get_system_parses_the_firmware_field_a_non_info_orbs_client_sends() {
+        let server = MockServer::start().await;
+        // Orbit Station's api::handleSystem: a "firmware" field info-orbs
+        // itself never sends (see hasButtons in lib/capabilities.ts).
+        let body = r#"{"hostname":"orbit-station-ab.local","firmware":"Orbit Station 0.1.0","firmwareBuilt":"Nov 20 2026 10:00:00"}"#;
+        Mock::given(method("GET"))
+            .and(path("/api/v1/system"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(body, "application/json"))
+            .mount(&server)
+            .await;
+
+        let client = OrbitClient::with_base_url(format!("{}/orbit/api/v1", server.uri()));
+        let info = client.get_system().await.expect("request should succeed");
+
+        assert_eq!(info.firmware.as_deref(), Some("Orbit Station 0.1.0"));
     }
 
     #[tokio::test]

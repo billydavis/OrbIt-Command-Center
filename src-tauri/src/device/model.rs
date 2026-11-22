@@ -45,6 +45,12 @@ pub struct SystemInfo {
     /// The widget on screen now, by its `getName()` (e.g. "OrbIt"). `None`
     /// on firmware that doesn't report it here.
     pub widget: Option<String>,
+    /// A build/product name (e.g. "Orbit Station 0.1.0"), only on firmware
+    /// that isn't info-orbs itself — info-orbs' own `fillSystemInfo` never
+    /// sets this. The app takes its presence as "this board has no physical
+    /// buttons" (see `has_buttons` in lib/capabilities.ts); a future
+    /// buttonless client this doesn't hold for would need its own check.
+    pub firmware: Option<String>,
 }
 
 /// What the connected firmware was built with, as the app uses it. Widgets,

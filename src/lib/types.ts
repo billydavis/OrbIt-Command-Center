@@ -103,6 +103,12 @@ export interface SystemInfo {
   firmwareBuilt: string;
   /** The widget on screen now, e.g. "OrbIt"; null on firmware that doesn't say here. */
   widget: string | null;
+  /**
+   * A build/product name (e.g. "Orbit Station 0.1.0"), only on firmware
+   * that isn't info-orbs itself — info-orbs never sets this. See
+   * `hasButtons` in lib/capabilities.ts.
+   */
+  firmware: string | null;
 }
 
 /** The orb's three physical buttons (POST /api/v1/buttons/{left|ok|right}). */

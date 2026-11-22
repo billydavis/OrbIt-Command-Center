@@ -15,6 +15,7 @@ import { Toast } from "./components/status/Toast";
 import { ToastStack } from "./components/status/ToastStack";
 import { useApplyLayout } from "./hooks/useApplyLayout";
 import { useApplyTheme } from "./hooks/useApplyTheme";
+import { hasButtons } from "./lib/capabilities";
 import { getScreens, setShowInTaskbar } from "./lib/tauriCommands";
 import { IS_WINDOWS } from "./lib/platform";
 import {
@@ -42,6 +43,7 @@ function App() {
   const connectionStatus = useDeviceStore((s) => s.status);
   const disconnect = useDeviceStore((s) => s.disconnect);
   const markLost = useDeviceStore((s) => s.markLost);
+  const system = useDeviceStore((s) => s.system);
   const setSystem = useDeviceStore((s) => s.setSystem);
   const setSystemUnsupported = useDeviceStore((s) => s.setSystemUnsupported);
   const setWidget = useDeviceStore((s) => s.setWidget);
@@ -310,9 +312,11 @@ function App() {
           // and the main column scroll separately.
           <div className="workbench">
             <aside className="rail">
-              <RailSection id="orb" title="Orb">
-                <OrbButtons />
-              </RailSection>
+              {hasButtons(system) && (
+                <RailSection id="orb" title="Orb">
+                  <OrbButtons />
+                </RailSection>
+              )}
               <ProfileList onApplied={handleProfileApplied} />
               <RailSection
                 id="feeds"

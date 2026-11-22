@@ -6,6 +6,7 @@ import {
   type ControlType,
   type OrbitError,
   type ScreenSlot,
+  type SystemInfo,
 } from "./types";
 
 // What the connected orb's firmware can show. Its controls and screensaver
@@ -15,6 +16,19 @@ import {
 
 export function controlBuilt(capabilities: Capabilities | null, control: string): boolean {
   return capabilities === null || capabilities.controls.includes(control);
+}
+
+/**
+ * Whether the connected board has physical buttons to press — the rail's
+ * Orb section is pointless without them. info-orbs' own `GET
+ * /api/v1/system` never sets `firmware`; a client like Orbit Station that
+ * has no buttons (and no widget system for them to drive) does. True until
+ * proven otherwise (unknown firmware, or no reading yet): info-orbs is what
+ * this app is mostly used with, and it has buttons. A future buttonless
+ * client this convention doesn't hold for would need its own check here.
+ */
+export function hasButtons(system: SystemInfo | null): boolean {
+  return system?.firmware == null;
 }
 
 /** The controls to offer, in the app's own order. */
