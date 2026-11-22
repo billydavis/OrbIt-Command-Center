@@ -30,6 +30,17 @@ export function builtEffects(capabilities: Capabilities | null): ScreensaverEffe
 }
 
 /**
+ * The `transition` choices to offer a control that animates between
+ * pictures (so far just makapix), as the orb lists them. Unlike a control
+ * or screensaver effect, there's no fixed app-side list this narrows down —
+ * firmware that doesn't report any (or hasn't been asked) is only known to
+ * accept "random" and "none".
+ */
+export function builtTransitions(capabilities: Capabilities | null): string[] {
+  return capabilities?.transitions ?? ["random", "none"];
+}
+
+/**
  * What `slots` ask for that the orb can't show, by name ("Ticker", "the
  * Matrix rain screensaver"), each once. Empty when all of it can be applied.
  */

@@ -262,6 +262,35 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn get_capabilities_parses_transitions_when_the_firmware_reports_them() {
+        let server = MockServer::start().await;
+        // Orbit Station's addition: makapix and the transitions it can play.
+        let body = r#"{
+          "controls": ["blank", "time", "makapix"],
+          "transitions": ["random", "none", "crossfade", "slide"]
+        }"#;
+        Mock::given(method("GET"))
+            .and(path("/orbit/api/v1/capabilities"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(body, "application/json"))
+            .mount(&server)
+            .await;
+
+        let client = OrbitClient::with_base_url(format!("{}/orbit/api/v1", server.uri()));
+        let capabilities = client.get_capabilities().await.expect("request should succeed");
+
+        assert!(capabilities.controls.iter().any(|c| c == "makapix"));
+        assert_eq!(
+            capabilities.transitions,
+            Some(vec![
+                "random".to_string(),
+                "none".to_string(),
+                "crossfade".to_string(),
+                "slide".to_string()
+            ])
+        );
+    }
+
+    #[tokio::test]
     async fn get_device_capabilities_lists_the_widgets_and_carries_orbits_controls() {
         let server = MockServer::start().await;
         // The shape WebService::handleCapabilities sends.

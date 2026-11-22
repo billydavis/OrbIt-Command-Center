@@ -80,6 +80,14 @@ const ICON_PATHS: Record<ControlType, React.ReactNode> = {
       <path d="M7.5 21c0-4 4.5-5.5 4.5-5.5s4.5 1.5 4.5 5.5" />
     </>
   ),
+  makapix: (
+    <>
+      <rect x="4" y="4" width="6" height="6" />
+      <rect x="14" y="4" width="6" height="6" />
+      <rect x="4" y="14" width="6" height="6" />
+      <rect x="14" y="14" width="6" height="6" fill="currentColor" stroke="none" />
+    </>
+  ),
 };
 
 export function ControlIcon({ control, className }: ControlIconProps) {

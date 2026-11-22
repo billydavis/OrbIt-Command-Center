@@ -91,3 +91,32 @@ export const SCREENSAVER_EFFECT_COLORS: Record<ScreensaverEffect, number> = {
   orrery: 65184,
   radar: 2016,
 };
+
+// makapix is Orbit Station's addition, not part of orbit-api v1 — info-orbs
+// doesn't build it (see "control" in capabilities.ts). Its "transition"
+// choice isn't a fixed list here: it comes from the device's own
+// capabilities (builtTransitions in capabilities.ts).
+export const MAKAPIX_CHANNELS = ["all", "promoted", "user", "by_user", "hashtag", "reactions"] as const;
+export type MakapixChannel = (typeof MAKAPIX_CHANNELS)[number];
+
+export const MAKAPIX_SORTS = ["random", "server_order", "created_at"] as const;
+export type MakapixSort = (typeof MAKAPIX_SORTS)[number];
+
+export const MAKAPIX_FITS = ["crisp", "fill"] as const;
+export type MakapixFit = (typeof MAKAPIX_FITS)[number];
+
+export const makapixParamsSchema = z.object({
+  channel: z.enum(MAKAPIX_CHANNELS).default("all"),
+  // Required for "by_user"/"reactions" and "hashtag" respectively — enforced
+  // in MakapixForm, not here, the same way WeatherForm handles its
+  // channel-dependent fields.
+  user: z.string().max(64).optional(),
+  hashtag: z.string().optional(),
+  sort: z.enum(MAKAPIX_SORTS).default("random"),
+  // Device clamps to 10-86400s; surfaced as a hint, not enforced
+  // client-side, so the device's own behavior stays the source of truth.
+  changeSeconds: z.coerce.number().int().positive().default(120),
+  fit: z.enum(MAKAPIX_FITS).default("crisp"),
+  transition: z.string().optional(),
+});
+export type MakapixParams = z.infer<typeof makapixParamsSchema>;

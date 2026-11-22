@@ -60,6 +60,10 @@ pub struct Capabilities {
     pub controls: Vec<String>,
     /// Only present when `screensaver` is one of `controls`.
     pub screensaver_effects: Option<Vec<String>>,
+    /// The `transition` choices a control that animates between pictures
+    /// (so far just `makapix`) can be set to. `None` on firmware that
+    /// doesn't report any, where only "random" and "none" are safe to send.
+    pub transitions: Option<Vec<String>>,
     /// Every widget in the firmware, in the order Left and Right step
     /// through them. `None` when only OrbIt's own endpoint answered.
     pub widgets: Option<Vec<WidgetCapabilities>>,
@@ -98,6 +102,7 @@ impl DeviceCapabilities {
         Some(Capabilities {
             controls: orbit.controls.clone().unwrap_or_default(),
             screensaver_effects: orbit.screensaver_effects.clone(),
+            transitions: None,
             widgets: Some(self.widgets),
         })
     }

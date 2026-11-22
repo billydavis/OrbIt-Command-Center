@@ -299,6 +299,33 @@ function draw(control: string, p: Record<string, unknown>, now: Date, feeds: Fee
       );
     }
 
+    case "makapix": {
+      // The device shows whatever artwork is current, which this doesn't
+      // fetch — a sample block of pixels stands in for "some pixel art".
+      const PIXELS = [
+        "#ff5fd2", "#ff5fd2", "#19e0ff", "#19e0ff",
+        "#ff5fd2", "#2a3238", "#2a3238", "#19e0ff",
+        "#ffc21a", "#2a3238", "#2a3238", "#5ee07a",
+        "#ffc21a", "#ffc21a", "#5ee07a", "#5ee07a",
+      ];
+      const size = 72 / 4;
+      return (
+        <>
+          <rect x="14" y="14" width="72" height="72" fill="#000" />
+          {PIXELS.map((fill, i) => (
+            <rect
+              key={i}
+              x={14 + (i % 4) * size}
+              y={14 + Math.floor(i / 4) * size}
+              width={size}
+              height={size}
+              fill={fill}
+            />
+          ))}
+        </>
+      );
+    }
+
     case "custom":
       // A plain string is drawn as centered text on the device; anything
       // else is a list of drawing primitives this doesn't try to render.

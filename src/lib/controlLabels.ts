@@ -15,4 +15,5 @@ export const CONTROL_LABELS: Record<ControlType, string> = {
   custom: "Custom",
   screensaver: "Screensaver",
   countdown: "Countdown",
+  makapix: "Makapix",
 };

@@ -38,6 +38,7 @@ export const CONTROL_TYPES = [
   "custom",
   "screensaver",
   "countdown",
+  "makapix",
 ] as const;
 
 export type ControlType = (typeof CONTROL_TYPES)[number];
@@ -53,6 +54,12 @@ export interface Capabilities {
   controls: string[];
   /** Only there when "screensaver" is one of `controls`. */
   screensaverEffects: string[] | null;
+  /**
+   * The `transition` choices a control that animates between pictures (so
+   * far just "makapix") can be set to. Null on firmware that doesn't report
+   * any, where only "random" and "none" are safe to send.
+   */
+  transitions: string[] | null;
   /**
    * Every widget in the firmware, in the order Left and Right step through
    * them. Null on firmware that only reports OrbIt's controls.
