@@ -19,8 +19,11 @@ type FormValues = z.input<typeof makapixParamsSchema>;
 const CHANNEL_LABELS: Record<MakapixChannel, string> = {
   all: "Everything",
   promoted: "Promoted",
-  user: "This board's own art",
-  by_user: "A user's art",
+  // Not art stored on the board — posts from the makapix.club account this
+  // board is paired with (see the pairing-code hint at the bottom of this
+  // form, and "channel" in MakapixControl.h).
+  user: "This board's paired account",
+  by_user: "A user's posts",
   hashtag: "A hashtag",
   reactions: "A user's reactions",
 };

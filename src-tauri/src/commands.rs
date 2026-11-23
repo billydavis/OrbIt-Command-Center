@@ -1,8 +1,10 @@
+use std::sync::atomic::Ordering;
+
 use tauri::{AppHandle, State};
 
 use crate::device::{
     BulkScreenSlotInput, ButtonPressed, Capabilities, CountdownAction, OrbButton, OrbitClient,
-    OrbitError, PressLength, ScreenSlot, ScreenSlotInput,
+    OrbitError, PressLength, ScreenSlot, ScreenSlotInput, SystemInfo,
 };
 use crate::discovery::{self, DiscoveredDevice};
 use crate::feeds::bindings::{self, ScreenBinding};
@@ -13,13 +15,24 @@ use crate::state::AppState;
 /// Probes the device at `host` (GET /screens) and, on success, stores the
 /// client for subsequent commands. Does not persist `host` yet — settings
 /// persistence lands in a later step.
+///
+/// See `AppState::connection_generation`: two calls to this command can
+/// genuinely be in flight at once (the connect screen's own automatic
+/// reconnect racing a manual click on a different device), and only the one
+/// that started last should get to become `device`/`last_layout` — an
+/// earlier one finishing after it must not clobber the connection the user
+/// actually asked for last.
 #[tauri::command]
 pub async fn connect_device(
     host: String,
     state: State<'_, AppState>,
 ) -> Result<Vec<ScreenSlot>, OrbitError> {
+    let my_generation = state.connection_generation.fetch_add(1, Ordering::SeqCst) + 1;
     let client = OrbitClient::new(&host);
     let screens = client.get_screens().await?;
+    if state.connection_generation.load(Ordering::SeqCst) != my_generation {
+        return Err(OrbitError::Other("superseded by a newer connection attempt".to_string()));
+    }
     *state.device.lock().expect("device state mutex poisoned") = Some(client);
     state.set_layout(screens.clone());
     Ok(with_bindings(&state, screens))
@@ -27,6 +40,7 @@ pub async fn connect_device(
 
 #[tauri::command]
 pub fn disconnect_device(state: State<'_, AppState>) {
+    state.connection_generation.fetch_add(1, Ordering::SeqCst);
     *state.device.lock().expect("device state mutex poisoned") = None;
     *state.last_layout.lock().expect("layout mutex poisoned") = None;
 }
@@ -58,6 +72,23 @@ pub async fn get_capabilities(
         }
         match client.get_capabilities().await {
             Ok(capabilities) => Ok(Some(capabilities)),
+            Err(OrbitError::DeviceRejected { status: 404, .. }) => Ok(None),
+            Err(err) => Err(err),
+        }
+    })
+    .await
+}
+
+/// `None` on firmware without GET /api/v1/system — same as the heartbeat's
+/// own fallback, just available on demand instead of waiting for the next
+/// probe. Read right after connecting (see connect() in deviceStore.ts) so
+/// things that depend on it, like whether to show the rail's Orb buttons,
+/// aren't stuck showing a stale default until the heartbeat's first tick.
+#[tauri::command]
+pub async fn get_system(state: State<'_, AppState>) -> Result<Option<SystemInfo>, OrbitError> {
+    with_device(&state, |client| async move {
+        match client.get_system().await {
+            Ok(info) => Ok(Some(info)),
             Err(OrbitError::DeviceRejected { status: 404, .. }) => Ok(None),
             Err(err) => Err(err),
         }

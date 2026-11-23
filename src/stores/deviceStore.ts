@@ -1,7 +1,8 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { connectDevice, disconnectDevice, getCapabilities } from "../lib/tauriCommands";
+import { connectDevice, disconnectDevice, getCapabilities, getSystem } from "../lib/tauriCommands";
 import { describeOrbitError, type Capabilities, type ScreenSlot, type SystemInfo } from "../lib/types";
+import { useLayoutDraftStore } from "./layoutDraftStore";
 
 type ConnectionStatus = "disconnected" | "connecting" | "connected" | "lost";
 
@@ -41,6 +42,17 @@ interface DeviceState {
    * firmware that doesn't say, where all of them are.
    */
   capabilities: Capabilities | null;
+  /**
+   * Bumped on every connect attempt and on disconnect/lost — never on a
+   * plain state update. An async device action (Apply Layout, a ticker
+   * refresh, a countdown action, the sysMonitor tick) that outlives the
+   * connection it was sent on (the user switched devices, or disconnected,
+   * before it resolved) can otherwise patch the new device's live/draft
+   * state with the old device's answer. Callers capture this before the
+   * await and check `isCurrentConnection` after, before writing anything
+   * from the result into layoutDraftStore.
+   */
+  generation: number;
 
   connect: (host: string, hostname?: string) => Promise<ScreenSlot[]>;
   disconnect: () => Promise<void>;
@@ -74,6 +86,24 @@ async function readCapabilities(): Promise<Capabilities | null> {
   }
 }
 
+// Read right away rather than left for the heartbeat's first probe (up to
+// PROBE_INTERVAL later): otherwise anything that depends on it — like
+// whether to show the rail's Orb buttons — would start from its no-reading-
+// yet default and then jump as soon as the first probe lands, every single
+// time a device connects.
+async function readSystem(): Promise<{ system: SystemInfo | null; systemUnsupported: boolean }> {
+  try {
+    const system = await getSystem();
+    // `null` here means the device's own 404 on GET /api/v1/system (see
+    // commands::get_system) — firmware that really doesn't have it, not a
+    // fluke. Anything else that goes wrong (a timeout, a dropped request)
+    // throws instead, and is left for the heartbeat to settle shortly.
+    return { system, systemUnsupported: system === null };
+  } catch {
+    return { system: null, systemUnsupported: false };
+  }
+}
+
 function showingWidget(capabilities: Capabilities | null): string | null {
   return capabilities?.widgets?.find((w) => w.showing)?.name ?? null;
 }
@@ -89,21 +119,50 @@ export const useDeviceStore = create<DeviceState>()(
       systemUnsupported: false,
       widget: null,
       capabilities: null,
+      generation: 0,
 
       connect: async (host, hostname) => {
-        set({
-          status: "connecting",
-          error: null,
-          system: null,
-          systemUnsupported: false,
-          widget: null,
-          capabilities: null,
+        // ConnectionSettings fires an automatic reconnect-to-last-used right
+        // after a scan, with no lock against a manual click on a *different*
+        // device landing while that's in flight — so two connect() calls can
+        // genuinely run concurrently. Whichever started last (highest
+        // generation) is the one actually asked for, so an earlier one still
+        // in flight must not let its answer win just because it happens to
+        // resolve later: it bails out instead of touching any state below.
+        let myGeneration = 0;
+        set((state) => {
+          myGeneration = state.generation + 1;
+          return {
+            status: "connecting",
+            error: null,
+            system: null,
+            systemUnsupported: false,
+            widget: null,
+            capabilities: null,
+            generation: myGeneration,
+          };
         });
+        // Whatever screens were on display describe a connection this one is
+        // replacing — gone now rather than left sitting there (possibly
+        // showing through, see layoutDraftStore.ts's `clear`) until a
+        // syncFromDevice this attempt may never reach replaces it.
+        useLayoutDraftStore.getState().clear();
         try {
           const screens = await connectDevice(host);
           // Before the status changes, so the workbench never opens offering
-          // a control the orb doesn't have.
-          const capabilities = await readCapabilities();
+          // a control the orb doesn't have, or showing/hiding the Orb
+          // buttons on the no-reading-yet default rather than this device's
+          // own answer.
+          const [capabilities, { system, systemUnsupported }] = await Promise.all([
+            readCapabilities(),
+            readSystem(),
+          ]);
+          if (get().generation !== myGeneration) {
+            // Superseded while those requests were in flight — some other
+            // connect() (or a disconnect) has since become the current one.
+            // Silently drop: this isn't the device the UI is asking to show.
+            throw new Error("superseded by a newer connection attempt");
+          }
           const knownHostname = hostname ?? (host.toLowerCase().endsWith(".local") ? host.toLowerCase() : null);
           set({
             host,
@@ -111,18 +170,26 @@ export const useDeviceStore = create<DeviceState>()(
             status: "connected",
             error: null,
             capabilities,
-            widget: showingWidget(capabilities),
+            system,
+            systemUnsupported,
+            widget: system?.widget ?? showingWidget(capabilities),
           });
           return screens;
         } catch (err) {
-          set({ status: "disconnected", error: describeOrbitError(err) });
+          // A superseded attempt must not stomp on whatever the current one
+          // (or a disconnect) has since put in `status`/`error` — only the
+          // generation that's still current gets to report its own failure.
+          if (get().generation === myGeneration) {
+            set({ status: "disconnected", error: describeOrbitError(err) });
+          }
           throw err;
         }
       },
 
       disconnect: async () => {
         await disconnectDevice();
-        set({
+        useLayoutDraftStore.getState().clear();
+        set((state) => ({
           host: null,
           hostname: null,
           status: "disconnected",
@@ -131,21 +198,24 @@ export const useDeviceStore = create<DeviceState>()(
           systemUnsupported: false,
           widget: null,
           capabilities: null,
-        });
+          generation: state.generation + 1,
+        }));
       },
 
       markLost: (message) => {
         // Only meaningful once actually connected — an error before that point
         // is just a normal failed-connect-attempt, handled by connect() itself.
         if (get().status !== "connected") return;
-        set({
+        useLayoutDraftStore.getState().clear();
+        set((state) => ({
           status: "lost",
           error: message,
           system: null,
           systemUnsupported: false,
           widget: null,
           capabilities: null,
-        });
+          generation: state.generation + 1,
+        }));
       },
 
       setSystem: (system) => {
@@ -180,3 +250,14 @@ export const useDeviceStore = create<DeviceState>()(
     },
   ),
 );
+
+/**
+ * Whether `generation` (captured before an async device call) still matches
+ * the current connection. False means the user switched devices or
+ * disconnected while that call was in flight — its result describes a
+ * device that isn't the one on screen anymore, and shouldn't be written
+ * into layoutDraftStore.
+ */
+export function isCurrentConnection(generation: number): boolean {
+  return useDeviceStore.getState().generation === generation;
+}

@@ -12,6 +12,7 @@ import type {
   Profile,
   ScreenSlot,
   ScreenSlotInput,
+  SystemInfo,
 } from "./types";
 
 // Typed wrappers around invoke() — one per src-tauri/src/commands.rs command.
@@ -38,6 +39,11 @@ export function getCapabilities(): Promise<Capabilities | null> {
 
 export function getScreens(): Promise<ScreenSlot[]> {
   return invoke("get_screens");
+}
+
+/** Resolves with null on firmware without GET /api/v1/system. */
+export function getSystem(): Promise<SystemInfo | null> {
+  return invoke("get_system");
 }
 
 export function getScreen(n: number): Promise<ScreenSlot> {

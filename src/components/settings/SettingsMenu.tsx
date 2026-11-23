@@ -19,6 +19,17 @@ export function SettingsMenu({ connected, refreshing, onRefresh, onDisconnect }:
   const [open, setOpen] = useState(false);
   const [view, setView] = useState<"menu" | "appearance">("menu");
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  // A menu item (Disconnect, Refresh) closes the menu by unmounting it out
+  // from under the click that's still focused on it — the trigger button,
+  // which reopening-via-click never visibly focuses on its own, is left
+  // holding keyboard focus, and the next unrelated key or paint can then
+  // show its focus ring unprompted. Closing the menu always means "done
+  // with this control" here, so blur it rather than leave that behind.
+  useEffect(() => {
+    if (!open) triggerRef.current?.blur();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -49,6 +60,7 @@ export function SettingsMenu({ connected, refreshing, onRefresh, onDisconnect }:
   return (
     <div className="settings-menu" ref={containerRef}>
       <button
+        ref={triggerRef}
         type="button"
         className="settings-menu-trigger"
         aria-label="Menu"

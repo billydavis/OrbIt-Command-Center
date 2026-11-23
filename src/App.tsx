@@ -26,7 +26,7 @@ import {
   type SystemInfo,
 } from "./lib/types";
 import { useLayoutDraftStore } from "./stores/layoutDraftStore";
-import { useDeviceStore } from "./stores/deviceStore";
+import { isCurrentConnection, useDeviceStore } from "./stores/deviceStore";
 import { useFeedsStore } from "./stores/feedsStore";
 import { useProfilesStore } from "./stores/profilesStore";
 import { useToastStore } from "./stores/toastStore";
@@ -143,9 +143,16 @@ function App() {
   async function handleRefresh() {
     setRefreshing(true);
     dismissToast("refresh");
+    // See useApplyLayout.ts: the user can switch devices while this is in
+    // flight, and its answer must not land on whatever's connected by the
+    // time it comes back.
+    const generation = useDeviceStore.getState().generation;
     try {
-      syncFromDevice(await getScreens());
+      const screens = await getScreens();
+      if (!isCurrentConnection(generation)) return;
+      syncFromDevice(screens);
     } catch (err) {
+      if (!isCurrentConnection(generation)) return;
       showToast({
         key: "refresh",
         tone: "alert",

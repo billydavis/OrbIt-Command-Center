@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useLayoutDraftStore } from "../../stores/layoutDraftStore";
+import { isCurrentConnection, useDeviceStore } from "../../stores/deviceStore";
 import { useToastStore } from "../../stores/toastStore";
 import { ControlPicker } from "./ControlPicker";
 import { CONTROL_FORMS } from "../control-forms";
@@ -22,6 +23,12 @@ export function ScreenEditor({ screen }: ScreenEditorProps) {
   const resetDraftSlot = useLayoutDraftStore((s) => s.resetDraftSlot);
   const isDirty = useLayoutDraftStore((s) => s.isDirty(screen));
   const patchLive = useLayoutDraftStore((s) => s.patchLive);
+  // Part of the form's remount key below: switching to a different device
+  // can land on a screen whose control, params and updatedAt all happen to
+  // coincide with the one just disconnected from (e.g. both freshly booted,
+  // untouched, and reporting updatedAt: 0) — without this, the key wouldn't
+  // change, and the form would keep showing the old device's values.
+  const host = useDeviceStore((s) => s.host);
   const [refreshing, setRefreshing] = useState(false);
   const showToast = useToastStore((s) => s.show);
   const dismissToast = useToastStore((s) => s.dismiss);
@@ -34,10 +41,16 @@ export function ScreenEditor({ screen }: ScreenEditorProps) {
   async function handleRefreshTicker() {
     setRefreshing(true);
     dismissToast(`ticker-${screen}`);
+    // See useApplyLayout.ts: the user can switch devices while this is in
+    // flight, and its answer must not land on whatever's connected by the
+    // time it comes back.
+    const generation = useDeviceStore.getState().generation;
     try {
       const slot = await refreshTicker(screen);
+      if (!isCurrentConnection(generation)) return;
       patchLive(slot);
     } catch (err) {
+      if (!isCurrentConnection(generation)) return;
       showToast({
         key: `ticker-${screen}`,
         tone: "alert",
@@ -105,7 +118,10 @@ export function ScreenEditor({ screen }: ScreenEditorProps) {
             // shows as the device has it rather than as it was typed. And
             // the draft revision remounts it when the draft was replaced
             // from outside the form (a feed picked in the rail, a discard).
-            key={`${screen}-${control}-${live.updatedAt}-${revision}`}
+            // host is in here too, so switching devices always remounts it
+            // even when the new screen's control/updatedAt coincide with
+            // the old one's (see the comment on `host` above).
+            key={`${host}-${screen}-${control}-${live.updatedAt}-${revision}`}
             screen={screen}
             initialParams={draft.params}
             onChange={(params) => setDraftSlot(screen, { control, params })}

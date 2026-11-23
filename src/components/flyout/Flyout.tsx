@@ -10,7 +10,7 @@ import { useApplyTheme } from "../../hooks/useApplyTheme";
 import { formatRssi, SIGNAL_BARS, signalQuality } from "../../lib/systemFormat";
 import { getScreens, hideFlyout, showMainWindow } from "../../lib/tauriCommands";
 import { describeOrbitError, type Feed } from "../../lib/types";
-import { useDeviceStore } from "../../stores/deviceStore";
+import { isCurrentConnection, useDeviceStore } from "../../stores/deviceStore";
 import { useFeedsStore } from "../../stores/feedsStore";
 import { useLayoutDraftStore } from "../../stores/layoutDraftStore";
 import "../../App.css";
@@ -54,9 +54,16 @@ export function Flyout() {
   // layout; read that back from the orb (as App.tsx does).
   async function handleProfileApplied() {
     setRefreshError(null);
+    // See useApplyLayout.ts: the user can switch devices while this is in
+    // flight, and its answer must not land on whatever's connected by the
+    // time it comes back.
+    const generation = useDeviceStore.getState().generation;
     try {
-      syncFromDevice(await getScreens());
+      const screens = await getScreens();
+      if (!isCurrentConnection(generation)) return;
+      syncFromDevice(screens);
     } catch (err) {
+      if (!isCurrentConnection(generation)) return;
       setRefreshError(describeOrbitError(err));
     }
   }

@@ -93,6 +93,16 @@ interface LayoutDraftState {
   patchLive: (slot: ScreenSlot) => void;
 
   isDirty: (screen: number) => boolean;
+
+  /**
+   * Back to nothing known — for disconnecting (or losing) a device.
+   * Without this, whatever the previous device's screens were stays sitting
+   * here until a fresh `syncFromDevice` replaces it; a connect that never
+   * gets that far (or one whose result this app intentionally discards, see
+   * deviceStore.ts's `generation` guard) leaves it showing the old device's
+   * screens as if they belonged to whatever's connected now.
+   */
+  clear: () => void;
 }
 
 export const useLayoutDraftStore = create<LayoutDraftState>((set, get) => ({
@@ -164,4 +174,6 @@ export const useLayoutDraftStore = create<LayoutDraftState>((set, get) => ({
     if (!l || !d) return false;
     return l.control !== d.control || stableStringify(l.params) !== stableStringify(d.params);
   },
+
+  clear: () => set({ live: {}, draft: {}, draftRevision: {} }),
 }));

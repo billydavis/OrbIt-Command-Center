@@ -58,7 +58,17 @@ async fn run_tick(app: &AppHandle, failed_at: &mut HashMap<u8, Instant>) {
         let _writing = state.device_writes.lock().await;
         let Some((control, params)) = pending_push(&state, screen) else { continue };
         match client.post_screen(screen, ScreenSlotInput { control, params }).await {
-            Ok(updated) => state.patch_layout_slot(updated),
+            Ok(updated) => {
+                // See sysmonitor/task.rs's push_to_screen: the connected
+                // device may have changed while that POST was in flight.
+                let still_current = {
+                    let device = state.device.lock().expect("device state mutex poisoned");
+                    device.as_ref().map(|d| d.base_url()) == Some(client.base_url())
+                };
+                if still_current {
+                    state.patch_layout_slot(updated);
+                }
+            }
             Err(err) => {
                 failed_at.insert(screen, Instant::now());
                 // A device that didn't answer is the heartbeat's to report,

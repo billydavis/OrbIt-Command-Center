@@ -1,4 +1,4 @@
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicU64};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
 
@@ -11,6 +11,19 @@ use crate::feeds::{Bindings, FeedRegistry, FeedServerStatus};
 #[derive(Default)]
 pub struct AppState {
     pub device: Mutex<Option<OrbitClient>>,
+
+    /// Bumped by every `connect_device`/`disconnect_device` call, before it
+    /// does anything slow. `ConnectionSettings` fires an automatic
+    /// reconnect-to-last-used right after a scan with no lock against a
+    /// manual connect to a *different* device landing while that's in
+    /// flight — so two `connect_device` calls can genuinely race. Whichever
+    /// started last (the highest generation) is the one actually asked for;
+    /// `connect_device` checks this after its GET /screens and refuses to
+    /// become `device`/`last_layout` if some other call has since started
+    /// (mirrors the frontend's own `generation` guard in deviceStore.ts,
+    /// which otherwise only protects what the UI *shows*, not which device
+    /// further commands actually go to).
+    pub connection_generation: AtomicU64,
 
     /// The last full or partial view of the device's 5-screen layout this
     /// app has seen. Read by the sysMonitor background loop (sysmonitor/

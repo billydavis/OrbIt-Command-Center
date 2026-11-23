@@ -171,6 +171,17 @@ async fn push_to_screen(
     let slot = ScreenSlotInput { control: "sysMonitor".to_string(), params };
     match client.post_screen(screen, slot).await {
         Ok(updated) => {
+            // The connected device may have changed while that POST was in
+            // flight (the user switched to another orb) — a stale answer
+            // from the one before it shouldn't be cached or pushed to the
+            // frontend as if it were current (see heartbeat.rs's probe()).
+            let still_current = {
+                let device = state.device.lock().expect("device state mutex poisoned");
+                device.as_ref().map(|d| d.base_url()) == Some(client.base_url())
+            };
+            if !still_current {
+                return;
+            }
             state.patch_layout_slot(updated.clone());
             let _ = app.emit("sysmonitor://tick", &updated);
         }

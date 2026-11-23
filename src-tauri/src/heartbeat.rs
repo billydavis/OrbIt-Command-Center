@@ -77,18 +77,36 @@ async fn probe(app: &AppHandle, tracker: &mut Tracker) {
         *tracker = Tracker { device: Some(client.base_url().to_string()), ..Tracker::default() };
     }
 
+    let mut just_found_unsupported = false;
     let result = if tracker.system_unsupported {
         client.get_screens().await.map(|_| None)
     } else {
         match client.get_system().await {
             Err(OrbitError::DeviceRejected { status: 404, .. }) => {
                 tracker.system_unsupported = true;
-                let _ = app.emit(SYSTEM_UNSUPPORTED_EVENT, ());
+                just_found_unsupported = true;
                 client.get_screens().await.map(|_| None)
             }
             other => other.map(Some),
         }
     };
+
+    // The connected device may have changed while the requests above were
+    // in flight (the user switched to another orb) — a stale answer from
+    // the one before it shouldn't touch anything this emits or remembers.
+    // `tracker` itself needs no cleanup here: the base_url check at the top
+    // resets it on the next tick regardless.
+    let still_current = {
+        let device = state.device.lock().expect("device state mutex poisoned");
+        device.as_ref().map(|d| d.base_url()) == Some(client.base_url())
+    };
+    if !still_current {
+        return;
+    }
+
+    if just_found_unsupported {
+        let _ = app.emit(SYSTEM_UNSUPPORTED_EVENT, ());
+    }
 
     match result {
         Ok(info) => {
@@ -148,6 +166,7 @@ fn mark_lost(app: &AppHandle, state: &AppState, client: &OrbitClient, err: Orbit
             return;
         }
         *device = None;
+        state.connection_generation.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
     }
     *state.last_layout.lock().expect("layout mutex poisoned") = None;
     let _ = app.emit(LOST_EVENT, &err);

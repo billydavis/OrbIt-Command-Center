@@ -7,6 +7,7 @@ import { countdownSetSchema } from "../../lib/controlSchemas";
 import { describeOrbitError, type ScreenSlot } from "../../lib/types";
 import { ColorInput } from "../shared/ColorInput";
 import { COLORS, COLORS_UNSUPPORTED_MESSAGE, colorsNotApplied } from "../../lib/rgb565";
+import { isCurrentConnection, useDeviceStore } from "../../stores/deviceStore";
 import { useToastStore } from "../../stores/toastStore";
 
 // See TimeForm.tsx for why this uses the schema's input type.
@@ -37,8 +38,13 @@ export function CountdownForm({ screen, liveSlot, onApplied }: CountdownFormProp
   async function runAction(action: Parameters<typeof callCountdownAction>[1]) {
     setPending(true);
     dismissToast(`countdown-${screen}`);
+    // See useApplyLayout.ts: the user can switch devices while this is in
+    // flight, and its answer must not land on whatever's connected by the
+    // time it comes back.
+    const generation = useDeviceStore.getState().generation;
     try {
       const slot = await callCountdownAction(screen, action);
+      if (!isCurrentConnection(generation)) return;
       onApplied(slot);
       if (colorsNotApplied({ control: "countdown", params: action }, slot)) {
         showToast({
@@ -49,6 +55,7 @@ export function CountdownForm({ screen, liveSlot, onApplied }: CountdownFormProp
         });
       }
     } catch (err) {
+      if (!isCurrentConnection(generation)) return;
       showToast({
         key: `countdown-${screen}`,
         tone: "alert",

@@ -37,6 +37,7 @@ pub fn run() {
             commands::disconnect_device,
             commands::discover_devices,
             commands::get_capabilities,
+            commands::get_system,
             commands::get_screens,
             commands::get_screen,
             commands::apply_layout,
