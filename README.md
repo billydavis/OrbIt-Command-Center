@@ -67,6 +67,8 @@ The device has 5 physical round screens, each independently assigned a
 **control** (`time`, `analogClock`, `gauge`, `sysMonitor`, `weather`,
 `ticker`, `custom`, `screensaver`, `countdown`, or `blank`) with its own
 `params`. The full contract is documented in [`docs/orbit-api.md`](docs/orbit-api.md); this app is one client of it.
+Orbit Station firmware adds `makapix` (pixel art) and `claudeUsage` (Claude
+plan usage); the app offers them only to a board that reports them.
 
 | Piece | Purpose |
 | ----- | ------- |
@@ -75,7 +77,7 @@ The device has 5 physical round screens, each independently assigned a
 | Tray flyout | A small panel that opens beside the tray icon on a click, for a quick change without the full window: apply a profile, pick a screen, change what it shows, **Apply Layout**. Double-click the icon for the full window |
 | Countdown | Action-driven (set/pause/resume/restart/stop) rather than a saved config, so it gets its own always-live panel instead of going through Apply Layout |
 | sysMonitor loop | A background task (Rust, ~5s interval) reads local CPU/RAM via `sysinfo` and GPU stats via `nvidia-smi` (best-effort, NVIDIA-only) and pushes them to whichever screen is assigned `sysMonitor` — keeps running from the system tray even with the window closed |
-| Feeds | Named live numbers a `gauge` can follow instead of a typed-in value: the CPU/RAM/GPU readings one by one (`sys.cpu`, ...), plus anything another app on this PC posts to `http://127.0.0.1:47800/feeds/{name}` — see [`docs/feeds-api.md`](docs/feeds-api.md). The app pushes each bound screen its feed's latest value, at most once a second |
+| Feeds | Named live numbers a `gauge` can follow instead of a typed-in value: the CPU/RAM/GPU readings one by one (`sys.cpu`, ...), plus anything another app on this PC posts to `http://127.0.0.1:47800/feeds/{name}` — see [`docs/feeds-api.md`](docs/feeds-api.md). A `claudeUsage` screen follows four at once (`claude.session`, `claude.week` and their reset times), which Claude Code's status line can publish. The app pushes each bound screen its feeds' latest values, at most once a second |
 | Reconnect handling | Any failed request that means the device dropped off the network (not just a rejected one) drops the app back to the connect screen instead of silently going stale |
 
 All state the device itself needs to keep across reboots lives on the
@@ -109,8 +111,10 @@ of truth.
 - `docs/orbit-api.md` — the REST API spec this app implements against
 - `docs/feeds-api.md` — the local endpoint other apps push feeds to
 - `examples/` — example feed publishers: `random-feed.ps1` (a number that
-  drifts up and down; the one to copy from) and `fps-feed.ps1` (the
-  foreground program's frame rate, via PresentMon)
+  drifts up and down; the one to copy from), `fps-feed.ps1` (the
+  foreground program's frame rate, via PresentMon) and
+  `claude-usage-statusline.ps1` (a Claude Code status line that publishes
+  your plan usage for a `claudeUsage` screen)
 
 ## Roadmap
 

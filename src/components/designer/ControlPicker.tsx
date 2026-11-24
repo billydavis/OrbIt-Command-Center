@@ -23,6 +23,7 @@ const SAMPLE_PARAMS: Record<ControlType, Record<string, unknown>> = {
   screensaver: { effect: "asteroids" },
   countdown: { durationSeconds: 900, remainingSeconds: 684 },
   makapix: {},
+  claudeUsage: { style: "tanks", session: 62, week: 38 },
 };
 
 // Every control at once, each with a picture of what it puts on a screen,

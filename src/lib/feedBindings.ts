@@ -9,7 +9,9 @@ import type { ControlType } from "./types";
 export const BIND_KEY = "$bind";
 
 // Which params of which controls can follow a feed. A control joins by
-// getting an entry here and a source picker in its form.
+// getting an entry here and a source picker in its form. (claudeUsage
+// follows its feeds without choosing: see built_in in
+// src-tauri/src/feeds/bindings.rs.)
 export const BINDABLE_PARAMS: Partial<Record<ControlType, readonly string[]>> = {
   gauge: ["value"],
 };

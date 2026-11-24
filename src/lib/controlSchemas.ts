@@ -120,3 +120,26 @@ export const makapixParamsSchema = z.object({
   transition: z.string().optional(),
 });
 export type MakapixParams = z.infer<typeof makapixParamsSchema>;
+
+// claudeUsage is Orbit Station's addition too. Only `style` and `animate` are
+// settings; the four readings are live, never typed in or chosen here: they
+// always follow CLAUDE_USAGE_FEEDS (bound on the Rust side, built_in in
+// src-tauri/src/feeds/bindings.rs), which Claude Code's status line
+// publishes (examples/claude-usage-statusline.ps1).
+export const CLAUDE_USAGE_STYLES = ["pace", "orbit", "tanks"] as const;
+export type ClaudeUsageStyle = (typeof CLAUDE_USAGE_STYLES)[number];
+
+export const claudeUsageParamsSchema = z.object({
+  style: z.enum(CLAUDE_USAGE_STYLES).default("pace"),
+  animate: z.boolean().default(true),
+});
+export type ClaudeUsageParams = z.infer<typeof claudeUsageParamsSchema>;
+
+/** Each live param, and the feed it always follows. Keep in step with built_in in bindings.rs. */
+export const CLAUDE_USAGE_FEEDS = {
+  session: "claude.session",
+  week: "claude.week",
+  sessionResetsAt: "claude.sessionResetsAt",
+  weekResetsAt: "claude.weekResetsAt",
+} as const;
+export type ClaudeUsageReading = keyof typeof CLAUDE_USAGE_FEEDS;

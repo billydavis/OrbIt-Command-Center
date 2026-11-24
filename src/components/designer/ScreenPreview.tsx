@@ -1,4 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { CLAUDE_USAGE_FEEDS, type ClaudeUsageReading } from "../../lib/controlSchemas";
 import { boundFeed } from "../../lib/feedBindings";
 import { rgb565ToHex } from "../../lib/rgb565";
 import type { Feed } from "../../lib/types";
@@ -326,6 +327,9 @@ function draw(control: string, p: Record<string, unknown>, now: Date, feeds: Fee
       );
     }
 
+    case "claudeUsage":
+      return claudeUsage(p, feedValue);
+
     case "custom":
       // A plain string is drawn as centered text on the device; anything
       // else is a list of drawing primitives this doesn't try to render.
@@ -342,6 +346,108 @@ function draw(control: string, p: Record<string, unknown>, now: Date, feeds: Fee
     default:
       return null;
   }
+}
+
+// ClaudeUsageControl's colours: the logo and session, and the week.
+const CLAUDE_ORANGE = "#d97757";
+const CLAUDE_SAND = "#eadfca";
+
+/** The Claude spark: twelve tapered rays of uneven length. */
+function spark(x: number, y: number, r: number, fill: string): ReactNode {
+  const rays = [1, 0.78, 0.93, 0.72, 0.98, 0.8, 0.9, 0.7, 1, 0.76, 0.94, 0.82];
+  return rays.map((length, i) => (
+    <line
+      key={i} x1={x} y1={y - r * 0.08} x2={x} y2={y - r * length}
+      stroke={fill} strokeWidth={r * 0.16} strokeLinecap="round"
+      transform={`rotate(${i * 30 + 7} ${x} ${y})`}
+    />
+  ));
+}
+
+function claudeUsage(p: Record<string, unknown>, feedValue: (id: string) => number | undefined): ReactNode {
+  // The claude.* feed, as the device will show it; without one, whatever the
+  // params hold (the control picker's sample).
+  const reading = (param: ClaudeUsageReading): number | undefined => {
+    const value = feedValue(CLAUDE_USAGE_FEEDS[param]) ?? (typeof p[param] === "number" ? (p[param] as number) : undefined);
+    return value === undefined ? undefined : Math.max(0, Math.min(100, value));
+  };
+  const session = reading("session");
+  const week = reading("week");
+  const logo = session === undefined && week === undefined ? DIM : CLAUDE_ORANGE;
+  const label = (v: number | undefined) => (v === undefined ? "--" : `${Math.round(v)}%`);
+  const style = str(p.style, "pace");
+
+  if (style === "orbit") {
+    const ring = (r: number, v: number | undefined, stroke: string) => (
+      <>
+        <circle cx="50" cy="50" r={r} fill="none" stroke={TRACK} strokeWidth="1.2" />
+        {v !== undefined && v > 0 && (
+          <circle
+            cx="50" cy="50" r={r} fill="none" stroke={stroke} strokeWidth="2" strokeLinecap="round"
+            pathLength={100} strokeDasharray={`${v.toFixed(2)} 100`} transform="rotate(-90 50 50)"
+          />
+        )}
+      </>
+    );
+    return (
+      <>
+        {ring(46.5, week, CLAUDE_SAND)}
+        {ring(41, session, CLAUDE_ORANGE)}
+        {spark(50, 32, 11, logo)}
+        <text x="32.5" y="59" fontSize="12" fontWeight="600" fill={CLAUDE_ORANGE} className="mono-num">
+          {label(session)}
+        </text>
+        <text x="67.5" y="59" fontSize="12" fontWeight="600" fill={CLAUDE_SAND} className="mono-num">
+          {label(week)}
+        </text>
+        <text x="32.5" y="68" fontSize="4.5" letterSpacing=".4">SESSION</text>
+        <text x="67.5" y="68" fontSize="4.5" letterSpacing=".4">WEEK</text>
+      </>
+    );
+  }
+
+  if (style === "tanks") {
+    const level = (v: number | undefined) => 98 - (v ?? 0) * 0.97;
+    return (
+      <>
+        <clipPath id="claude-tanks">
+          <circle cx="50" cy="50" r="49.5" />
+        </clipPath>
+        <g clipPath="url(#claude-tanks)">
+          <rect x="0" y={level(session)} width="49" height="100" fill="#5c3024" />
+          <rect x="0" y={level(session) - 0.4} width="49" height="0.9" fill={CLAUDE_ORANGE} />
+          <rect x="51" y={level(week)} width="49" height="100" fill="#4b463c" />
+          <rect x="51" y={level(week) - 0.4} width="49" height="0.9" fill={CLAUDE_SAND} />
+        </g>
+        <circle cx="50" cy="22.5" r="10.5" fill={GLASS} />
+        {spark(50, 22.5, 8.5, logo)}
+        <text x="26" y="55" fontSize="12" fontWeight="600" className="mono-num">{label(session)}</text>
+        <text x="74" y="55" fontSize="12" fontWeight="600" className="mono-num">{label(week)}</text>
+        <text x="26" y="63" fontSize="4.5" letterSpacing=".4">SESSION</text>
+        <text x="74" y="63" fontSize="4.5" letterSpacing=".4">WEEK</text>
+      </>
+    );
+  }
+
+  // pace
+  const row = (y: number, name: string, v: number | undefined, fill: string) => (
+    <g key={name}>
+      <text x="12" y={y} fontSize="5" textAnchor="start" letterSpacing=".4">{name}</text>
+      <text x="88" y={y + 0.5} fontSize="11" fontWeight="600" textAnchor="end" fill={fill} className="mono-num">
+        {label(v)}
+      </text>
+      <rect x="12" y={y + 5.5} width="76" height="3.3" fill={TRACK} />
+      {v !== undefined && <rect x="12" y={y + 5.5} width={(76 * v) / 100} height="3.3" fill={fill} />}
+    </g>
+  );
+  return (
+    <>
+      {spark(34.5, 18, 6.5, logo)}
+      <text x="44" y="21.5" fontSize="9" textAnchor="start">Claude</text>
+      {row(36, "SESSION", session, CLAUDE_ORANGE)}
+      {row(61, "WEEK", week, CLAUDE_SAND)}
+    </>
+  );
 }
 
 function screensaver(effect: string, p: Record<string, unknown>): ReactNode {

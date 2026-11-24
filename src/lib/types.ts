@@ -39,6 +39,7 @@ export const CONTROL_TYPES = [
   "screensaver",
   "countdown",
   "makapix",
+  "claudeUsage",
 ] as const;
 
 export type ControlType = (typeof CONTROL_TYPES)[number];

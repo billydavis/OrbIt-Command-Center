@@ -11,6 +11,7 @@ import { TickerForm } from "./TickerForm";
 import { CustomForm } from "./CustomForm";
 import { ScreensaverForm } from "./ScreensaverForm";
 import { MakapixForm } from "./MakapixForm";
+import { ClaudeUsageForm } from "./ClaudeUsageForm";
 
 // countdown is intentionally not in this registry — it doesn't follow the
 // "edit params, apply as part of the bulk layout" pattern every other
@@ -27,4 +28,5 @@ export const CONTROL_FORMS: Record<Exclude<ControlType, "countdown">, ComponentT
   custom: CustomForm,
   screensaver: ScreensaverForm,
   makapix: MakapixForm,
+  claudeUsage: ClaudeUsageForm,
 };

@@ -89,12 +89,44 @@ impl Bindings {
     }
 }
 
+/// The feeds a control always follows, whatever its params say. Orbit
+/// Station's `claudeUsage` shows Claude plan usage and nothing else, so it's
+/// bound to the four `claude.*` feeds the status line script publishes
+/// (examples/claude-usage-statusline.ps1) on every screen that shows it —
+/// set from here, a profile, or another client — with nothing to choose.
+pub fn built_in(control: &str) -> Option<ScreenBinding> {
+    if control != "claudeUsage" {
+        return None;
+    }
+    let params = [
+        ("session", "claude.session"),
+        ("week", "claude.week"),
+        ("sessionResetsAt", "claude.sessionResetsAt"),
+        ("weekResetsAt", "claude.weekResetsAt"),
+    ]
+    .into_iter()
+    .map(|(param, feed)| (param.to_string(), feed.to_string()))
+    .collect();
+    Some(ScreenBinding { control: control.to_string(), params })
+}
+
+/// The binding `slot` follows right now: a control's built-in one, or else
+/// the one saved for that screen if it was made for this control.
+pub fn effective(slot: &ScreenSlot, saved: Option<ScreenBinding>) -> Option<ScreenBinding> {
+    built_in(&slot.control).or_else(|| saved.filter(|b| b.control == slot.control))
+}
+
 /// Splits `$bind` off outgoing params. Returns the params as the device
 /// should get them, and the binding they asked for (`None` for a slot with
-/// no usable `$bind`, which clears any binding the screen had).
+/// no usable `$bind`, which clears any binding the screen had). A control
+/// with a built-in binding never has one saved: that's always `None`.
 pub fn split(control: &str, mut params: serde_json::Value) -> (serde_json::Value, Option<ScreenBinding>) {
     let Some(object) = params.as_object_mut() else { return (params, None) };
-    let Some(raw) = object.remove(BIND_KEY) else { return (params, None) };
+    let raw = object.remove(BIND_KEY);
+    if built_in(control).is_some() {
+        return (params, None);
+    }
+    let Some(raw) = raw else { return (params, None) };
 
     let bound: BTreeMap<String, String> = raw
         .as_object()
@@ -120,14 +152,33 @@ pub fn fill_values(params: &mut serde_json::Value, binding: &ScreenBinding, feed
     let Some(object) = params.as_object_mut() else { return };
     for (param, feed_id) in &binding.params {
         if let Some(value) = feeds.value(feed_id) {
-            object.insert(param.clone(), serde_json::json!(value));
+            object.insert(param.clone(), reading_json(value));
         }
+    }
+}
+
+/// A feed reading as the device should get it. Whole numbers go as JSON
+/// integers: a param like claudeUsage's `sessionResetsAt` (Unix seconds)
+/// must be an integer on the device, and `1795535998.0` isn't one there.
+/// A control taking a float accepts an integer just the same.
+fn reading_json(value: f64) -> serde_json::Value {
+    // 2^53: past this an f64 can't tell neighbouring integers apart anyway.
+    const EXACT: f64 = 9_007_199_254_740_992.0;
+    if value.fract() == 0.0 && value.abs() <= EXACT {
+        serde_json::json!(value as i64)
+    } else {
+        serde_json::json!(value)
     }
 }
 
 /// Re-adds `$bind` to a slot on its way to the frontend, if `binding` is for
 /// the control that screen is showing.
 pub fn attach(slot: &mut ScreenSlot, binding: Option<&ScreenBinding>) {
+    // A built-in binding isn't the frontend's to see or change (and one
+    // saved before it was built in is stale).
+    if built_in(&slot.control).is_some() {
+        return;
+    }
     let Some(binding) = binding.filter(|b| b.control == slot.control) else { return };
     if let Some(object) = slot.params.as_object_mut() {
         object.insert(BIND_KEY.to_string(), serde_json::json!(binding.params));
@@ -154,7 +205,7 @@ pub fn pending_push(
         if current.is_some_and(|c| same_reading(c, value)) {
             continue;
         }
-        object.insert(param.clone(), serde_json::json!(value));
+        object.insert(param.clone(), reading_json(value));
         changed = true;
     }
     changed.then_some(params)
@@ -162,7 +213,13 @@ pub fn pending_push(
 
 /// The device stores a gauge's value as a 32-bit float and echoes that back,
 /// so what it reports rarely equals the 64-bit number sent bit for bit.
+/// Whole numbers go out as integers (see `reading_json`) and come back
+/// exactly, so they compare exactly: a relative margin would hide whole
+/// days of change in a Unix time like claudeUsage's reset times.
 fn same_reading(a: f64, b: f64) -> bool {
+    if a.fract() == 0.0 && b.fract() == 0.0 {
+        return a == b;
+    }
     (a - b).abs() <= 1e-4 * b.abs().max(1.0)
 }
 
@@ -250,7 +307,87 @@ mod tests {
 
         fill_values(&mut params, &binding, &registry);
 
-        assert_eq!(params, json!({ "value": 42.0, "max": 100 }));
+        assert_eq!(params, json!({ "value": 42, "max": 100 }));
+    }
+
+    #[test]
+    fn claude_usage_follows_its_four_feeds_with_nothing_saved() {
+        // A $bind in its params is dropped, and nothing is saved for it.
+        let (clean, saved) =
+            split("claudeUsage", json!({ "style": "orbit", "$bind": { "session": "sys.cpu" } }));
+        assert_eq!(clean, json!({ "style": "orbit" }));
+        assert_eq!(saved, None);
+
+        // It still follows the claude.* feeds, saved binding or not.
+        let slot = ScreenSlot {
+            screen: 3,
+            control: "claudeUsage".into(),
+            params: json!({ "style": "pace" }),
+            updated_at: 1,
+            saved_control: None,
+        };
+        let binding = effective(&slot, None).expect("built in");
+        assert_eq!(binding.params["week"], "claude.week");
+        assert_eq!(binding.params["weekResetsAt"], "claude.weekResetsAt");
+        assert_eq!(binding.params.len(), 4);
+        assert_eq!(effective(&slot, Some(cpu_binding())), Some(binding));
+    }
+
+    #[test]
+    fn other_controls_follow_only_a_saved_binding_made_for_them() {
+        let gauge = gauge_slot(json!({ "value": 3 }));
+        assert_eq!(effective(&gauge, Some(cpu_binding())), Some(cpu_binding()));
+        assert_eq!(effective(&gauge, None), None);
+        let weather = ScreenSlot { control: "weather".into(), ..gauge_slot(json!({})) };
+        assert_eq!(effective(&weather, Some(cpu_binding())), None);
+    }
+
+    #[test]
+    fn whole_readings_go_as_integers_and_others_as_floats() {
+        assert_eq!(reading_json(1795535998.0).to_string(), "1795535998");
+        assert_eq!(reading_json(-3.0).to_string(), "-3");
+        assert_eq!(reading_json(42.5).to_string(), "42.5");
+        assert_eq!(reading_json(1e300), json!(1e300));
+    }
+
+    #[test]
+    fn pending_push_fills_several_bound_params_of_one_screen() {
+        let registry = FeedRegistry::default();
+        registry.publish_builtin("claude.session", 68.0, FeedHints::default());
+        registry.publish_builtin("claude.sessionResetsAt", 1795535998.0, FeedHints::default());
+        let binding = ScreenBinding {
+            control: "claudeUsage".into(),
+            params: BTreeMap::from([
+                ("session".to_string(), "claude.session".to_string()),
+                ("sessionResetsAt".to_string(), "claude.sessionResetsAt".to_string()),
+                ("week".to_string(), "claude.week".to_string()), // not published yet
+            ]),
+        };
+        // As the device reports it after a restart: style kept, readings gone.
+        let slot = ScreenSlot {
+            screen: 0,
+            control: "claudeUsage".into(),
+            params: json!({ "style": "tanks", "animate": true, "changing": false }),
+            updated_at: 0,
+            saved_control: None,
+        };
+
+        let params = pending_push(&slot, &binding, &registry).expect("readings missing on the device");
+
+        assert_eq!(params["session"].to_string(), "68");
+        assert_eq!(params["sessionResetsAt"].to_string(), "1795535998");
+        assert!(params.get("week").is_none());
+        assert_eq!(params["style"], "tanks");
+
+        // Once the device echoes them back, there's nothing more to push.
+        let echoed = ScreenSlot { params, ..slot };
+        assert_eq!(pending_push(&echoed, &binding, &registry), None);
+
+        // A reset time that moves by a minute is pushed, even though that's
+        // a tiny fraction of the number.
+        registry.publish_builtin("claude.sessionResetsAt", 1795536058.0, FeedHints::default());
+        let params = pending_push(&echoed, &binding, &registry).expect("reset time moved");
+        assert_eq!(params["sessionResetsAt"].to_string(), "1795536058");
     }
 
     #[test]
@@ -260,7 +397,7 @@ mod tests {
 
         let params = pending_push(&slot, &cpu_binding(), &registry).expect("value differs");
 
-        assert_eq!(params, json!({ "label": "CPU", "value": 42.0, "style": "ring" }));
+        assert_eq!(params, json!({ "label": "CPU", "value": 42, "style": "ring" }));
     }
 
     #[test]

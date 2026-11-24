@@ -16,4 +16,5 @@ export const CONTROL_LABELS: Record<ControlType, string> = {
   screensaver: "Screensaver",
   countdown: "Countdown",
   makapix: "Makapix",
+  claudeUsage: "Claude Usage",
 };

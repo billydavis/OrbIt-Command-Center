@@ -47,7 +47,18 @@ async fn run_tick(app: &AppHandle, failed_at: &mut HashMap<u8, Instant>) {
 
     failed_at.retain(|_, at| at.elapsed() < RETRY_AFTER_FAILURE);
 
-    for screen in state.bindings.all().into_keys() {
+    // Screens with a saved binding, plus any showing a control that's bound
+    // by itself (claudeUsage); pending_push sorts out which apply.
+    let mut screens: Vec<u8> = state.bindings.all().into_keys().collect();
+    {
+        let layout = state.last_layout.lock().expect("layout mutex poisoned");
+        for slot in layout.iter().flatten() {
+            if bindings::built_in(&slot.control).is_some() && !screens.contains(&slot.screen) {
+                screens.push(slot.screen);
+            }
+        }
+    }
+    for screen in screens {
         if failed_at.contains_key(&screen) || pending_push(&state, screen).is_none() {
             continue;
         }
@@ -87,9 +98,10 @@ async fn run_tick(app: &AppHandle, failed_at: &mut HashMap<u8, Instant>) {
 /// heartbeat refreshes that cache with the gauge back at 0, which is what
 /// makes the reading get pushed again.
 fn pending_push(state: &AppState, screen: u8) -> Option<(String, serde_json::Value)> {
-    let binding = state.bindings.get(screen)?;
+    let saved = state.bindings.get(screen);
     let layout = state.last_layout.lock().expect("layout mutex poisoned");
     let slot = layout.as_ref()?.iter().find(|s| s.screen == screen)?;
+    let binding = bindings::effective(slot, saved)?;
     let params = bindings::pending_push(slot, &binding, &state.feeds)?;
     Some((slot.control.clone(), params))
 }

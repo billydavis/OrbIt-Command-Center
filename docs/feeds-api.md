@@ -1,6 +1,6 @@
 # feeds-api specification
 
-A **feed** is a named live number held by OrbIt Command Center. A screen can follow one — today, a `gauge`'s value — and the app keeps the orb showing its latest reading. This is the local HTTP endpoint other programs use to publish feeds of their own.
+A **feed** is a named live number held by OrbIt Command Center. A screen can follow feeds — a `gauge`'s value, or the four readings of a `claudeUsage` screen — and the app keeps the orb showing their latest readings. This is the local HTTP endpoint other programs use to publish feeds of their own.
 
 A program pushing a feed doesn't need to know the orb's address, which screen (if any) shows its number, or how that gauge is styled. It posts a value under a name; what happens to it is decided in the app.
 
@@ -102,11 +102,28 @@ Same shape as the orb's own API:
 
 The gauge shows whole numbers, with a `%` after them only when its range is exactly 0-100.
 
+A whole-number reading reaches the orb as a JSON integer (`1795535998`, not `1795535998.0`), so a feed can carry a time in Unix seconds.
+
+### Claude usage
+
+A `claudeUsage` screen (Orbit Station firmware) always follows these four feeds; there's nothing to bind or choose:
+
+| feed | reading |
+|------|---------|
+| `claude.session` | Claude's rolling 5-hour session limit, percent used |
+| `claude.week` | the weekly limit, percent used |
+| `claude.sessionResetsAt` | when the 5-hour window resets, Unix seconds |
+| `claude.weekResetsAt` | when the weekly window resets, Unix seconds |
+
+[`examples/claude-usage-statusline.ps1`](../examples/claude-usage-statusline.ps1) publishes them: it's a Claude Code status line, which Claude Code runs after each reply with the session's `rate_limits` on stdin (Pro, Max and Ultra plans only, from the session's first reply). Its comment says how to set it up. The orb counts down to each reset by itself, so the readings only need to arrive when they change.
+
 Feeds live in memory: after the app restarts, an external feed is gone until its program pushes again. Which screen follows which feed is saved, and is part of a saved profile.
 
 ## Examples
 
 The one to start from: [`examples/random-feed.ps1`](../examples/random-feed.ps1) publishes a made-up number that drifts smoothly up and down, as `demo.random`. It needs nothing but Windows PowerShell, and is everything a publisher has to do in about forty lines — swap its "next value" step for a real reading.
+
+For a Claude Usage screen: [`examples/claude-usage-statusline.ps1`](../examples/claude-usage-statusline.ps1), described above.
 
 A real one: [`examples/fps-feed.ps1`](../examples/fps-feed.ps1) pushes the frame rate of whatever program is in the foreground as the `fps` feed, once a second. It needs PresentMon (a single downloaded exe) and an elevated PowerShell; the comment at the top of the script has the details.
 

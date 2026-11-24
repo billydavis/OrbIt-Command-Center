@@ -14,9 +14,21 @@ import { SCREEN_COUNT, type ScreenSlot, type ScreenSlotInput } from "../lib/type
 // screensaver's effects. Firmware that predates that still reports it, and
 // the device still accepts it on write as an alias — folding it in here
 // gives the editor a form to show for it.
+//
+// claudeUsage reports its live readings (and whether they're `changing`)
+// alongside its settings, but its form only holds the settings: the
+// readings come from feeds, filled in on the Rust side. Left in, every
+// claudeUsage screen would read as dirty the moment it was opened.
+const CLAUDE_USAGE_LIVE = ["session", "week", "sessionResetsAt", "weekResetsAt", "changing"];
+
 function sanitizeSlot(slot: ScreenSlot): ScreenSlot {
   if (slot.control === "asteroids") {
     return { ...slot, control: "screensaver", params: { effect: "asteroids" } };
+  }
+  if (slot.control === "claudeUsage") {
+    const params = { ...slot.params };
+    for (const key of CLAUDE_USAGE_LIVE) delete params[key];
+    return { ...slot, params };
   }
   if (slot.control !== "sysMonitor" || slot.params.center !== "") {
     return slot;

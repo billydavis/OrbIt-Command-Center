@@ -304,8 +304,11 @@ fn prepare_write(
     params: serde_json::Value,
 ) -> (serde_json::Value, Option<ScreenBinding>) {
     let (mut params, binding) = bindings::split(control, params);
-    if let Some(binding) = &binding {
-        bindings::fill_values(&mut params, binding, &state.feeds);
+    // A built-in binding isn't saved, but the write still carries its
+    // feeds' readings, so the screen doesn't show "no data" until the
+    // pusher's next tick.
+    if let Some(fill) = binding.clone().or_else(|| bindings::built_in(control)) {
+        bindings::fill_values(&mut params, &fill, &state.feeds);
     }
     (params, binding)
 }
