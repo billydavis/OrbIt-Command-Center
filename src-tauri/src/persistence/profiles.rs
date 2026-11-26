@@ -71,10 +71,6 @@ pub fn delete(app: &AppHandle, id: &str) -> Result<(), ProfileError> {
     delete_at(&profiles_path(app)?, id)
 }
 
-pub fn get(app: &AppHandle, id: &str) -> Result<Profile, ProfileError> {
-    get_at(&profiles_path(app)?, id)
-}
-
 // --- path-parameterized core logic, kept separate from AppHandle/tauri's
 // path resolution above so it can be unit-tested against a temp dir. ---
 
@@ -126,13 +122,6 @@ fn delete_at(path: &Path, id: &str) -> Result<(), ProfileError> {
     save_all_at(path, &profiles)
 }
 
-fn get_at(path: &Path, id: &str) -> Result<Profile, ProfileError> {
-    list_at(path)
-        .into_iter()
-        .find(|p| p.id == id)
-        .ok_or_else(|| ProfileError::NotFound(id.to_string()))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -164,13 +153,6 @@ mod tests {
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0], saved);
         let _ = std::fs::remove_file(&path);
-    }
-
-    #[test]
-    fn get_missing_profile_is_not_found() {
-        let path = temp_profiles_path();
-        let err = get_at(&path, "does-not-exist").unwrap_err();
-        assert!(matches!(err, ProfileError::NotFound(id) if id == "does-not-exist"));
     }
 
     #[test]

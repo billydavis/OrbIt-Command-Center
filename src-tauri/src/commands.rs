@@ -3,13 +3,13 @@ use std::sync::atomic::Ordering;
 use tauri::{AppHandle, State};
 
 use crate::device::{
-    BulkScreenSlotInput, ButtonPressed, Capabilities, CountdownAction, OrbButton, OrbitClient,
+    BulkScreenSlotInput, ButtonPressed, Capabilities, ClockFaceUploaded, CountdownAction, OrbButton, OrbitClient,
     OrbitError, PressLength, ScreenSlot, ScreenSlotInput, SystemInfo,
 };
 use crate::discovery::{self, DiscoveredDevice};
 use crate::feeds::bindings::{self, ScreenBinding};
 use crate::feeds::{Feed, FeedServerStatus};
-use crate::persistence::{profile_store, Profile, ProfileError};
+use crate::persistence::{clock_face_store, profile_store, ClockFace, Profile, ProfileError};
 use crate::state::AppState;
 
 /// Probes the device at `host` (GET /screens) and, on success, stores the
@@ -63,7 +63,18 @@ pub async fn get_capabilities(
     with_device(&state, |client| async move {
         match client.get_device_capabilities().await {
             Ok(device) => {
-                if let Some(capabilities) = device.into_capabilities() {
+                if let Some(mut capabilities) = device.into_capabilities() {
+                    // The device-wide list names OrbIt's controls but not
+                    // what they can do (transitions, clock faces); OrbIt's
+                    // own endpoint does. Firmware without one or the other
+                    // just leaves those out.
+                    if let Ok(orbit) = client.get_capabilities().await {
+                        capabilities.transitions = orbit.transitions;
+                        capabilities.clock_faces = orbit.clock_faces;
+                        if orbit.screensaver_effects.is_some() {
+                            capabilities.screensaver_effects = orbit.screensaver_effects;
+                        }
+                    }
                     return Ok(Some(capabilities));
                 }
             }
@@ -198,14 +209,48 @@ pub fn delete_profile(app: AppHandle, id: String) -> Result<(), ProfileError> {
     profile_store::delete(&app, &id)
 }
 
+/// Stores a clock face file on screen `n` (`file` is sent byte for byte;
+/// the board's hash is of exactly these bytes). The board sets the screen's
+/// `clockFaceId`/`clockFaceHash` itself if it shows `analogClock`; the
+/// Apply that follows sets them either way. A write to the orb's flash, so
+/// it shares `device_writes` with the layout writes.
 #[tauri::command]
-pub async fn apply_profile(
+pub async fn upload_clock_face(
+    n: u8,
+    file: String,
+    state: State<'_, AppState>,
+) -> Result<ClockFaceUploaded, OrbitError> {
+    let _writing = state.device_writes.lock().await;
+    with_device(&state, |client| async move { client.put_clock_face(n, file).await }).await
+}
+
+#[tauri::command]
+pub fn list_clock_faces(app: AppHandle) -> Result<Vec<ClockFace>, ProfileError> {
+    clock_face_store::list(&app)
+}
+
+#[tauri::command]
+pub fn save_clock_face(
+    app: AppHandle,
+    name: String,
+    recipe: serde_json::Value,
+) -> Result<ClockFace, ProfileError> {
+    clock_face_store::save(&app, name, recipe)
+}
+
+#[tauri::command]
+pub fn update_clock_face(
     app: AppHandle,
     id: String,
-    state: State<'_, AppState>,
-) -> Result<Vec<ScreenSlot>, OrbitError> {
-    let profile = profile_store::get(&app, &id).map_err(|e| OrbitError::Other(e.to_string()))?;
-    write_bulk(&state, profile.slots).await
+    name: String,
+    recipe: serde_json::Value,
+) -> Result<ClockFace, ProfileError> {
+    clock_face_store::update(&app, &id, name, recipe)
+}
+
+#[tauri::command]
+pub fn delete_clock_face(app: AppHandle, id: String) -> Result<(), ProfileError> {
+    clock_face_store::delete(&app, &id)
 }
 
 #[tauri::command]
@@ -266,7 +311,8 @@ where
     f(client).await
 }
 
-/// Bulk write shared by Apply Layout and applying a profile: each slot's
+/// Bulk write behind Apply Layout (and applying a profile, which the
+/// frontend sends the same way once its clock faces are on the orb): each slot's
 /// feed binding (feeds/bindings.rs) is split off before the POST and
 /// recorded once the device has accepted the write.
 async fn write_bulk(

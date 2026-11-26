@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { applyProfile } from "../../lib/tauriCommands";
+import { applyProfile } from "../../lib/applyProfile";
 import { describeOrbitError, type Profile } from "../../lib/types";
 import { useProfilesStore } from "../../stores/profilesStore";
 import { keptOn, listOf, notBuiltIn } from "../../lib/capabilities";
@@ -51,7 +51,7 @@ export function FlyoutProfiles({ onApplied }: FlyoutProfilesProps) {
     setBusyId(profile.id);
     setError(null);
     try {
-      await applyProfile(profile.id);
+      await applyProfile(profile);
       setActive(profile.id);
       onApplied();
     } catch (err) {

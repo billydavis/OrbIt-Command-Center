@@ -9,12 +9,15 @@ import { ProfileList } from "./components/profiles/ProfileList";
 import { FeedsDrawer } from "./components/feeds/FeedsDrawer";
 import { FeedsPanel } from "./components/feeds/FeedsPanel";
 import { OrbButtons } from "./components/device/OrbButtons";
+import { ClockFaceBuilder } from "./components/clockfaces/ClockFaceBuilder";
+import { ClockFaceList } from "./components/clockfaces/ClockFaceList";
 import { RailSection } from "./components/rail/RailSection";
 import { StatusBar } from "./components/status/StatusBar";
 import { Toast } from "./components/status/Toast";
 import { ToastStack } from "./components/status/ToastStack";
 import { useApplyLayout } from "./hooks/useApplyLayout";
 import { useApplyTheme } from "./hooks/useApplyTheme";
+import { useClockFaceDrafts } from "./hooks/useClockFaceDrafts";
 import { hasButtons } from "./lib/capabilities";
 import { getScreens, setShowInTaskbar } from "./lib/tauriCommands";
 import { IS_WINDOWS } from "./lib/platform";
@@ -29,6 +32,7 @@ import { useLayoutDraftStore } from "./stores/layoutDraftStore";
 import { isCurrentConnection, useDeviceStore } from "./stores/deviceStore";
 import { useFeedsStore } from "./stores/feedsStore";
 import { useProfilesStore } from "./stores/profilesStore";
+import { useClockFacesStore } from "./stores/clockFacesStore";
 import { useToastStore } from "./stores/toastStore";
 import { useWindowStore } from "./stores/windowStore";
 import "./App.css";
@@ -38,6 +42,7 @@ const REBOOT_NOTICE_AUTO_DISMISS_MS = 10_000;
 
 function App() {
   useApplyTheme();
+  useClockFaceDrafts();
 
   const host = useDeviceStore((s) => s.host);
   const connectionStatus = useDeviceStore((s) => s.status);
@@ -179,6 +184,10 @@ function App() {
   }
 
   const connected = connectionStatus === "connected";
+  // The clock face builder, and its rail section, only for firmware that
+  // takes clock face files.
+  const clockFacesSupported = useDeviceStore((s) => !!s.capabilities?.clockFaces);
+  const clockFaceEditing = useClockFacesStore((s) => s.editor !== null);
 
   // A profile stays highlighted until the layout is changed away from it,
   // or the orb is gone. Keyed on the draft itself, not just on being
@@ -212,8 +221,8 @@ function App() {
       )}
 
       {layout.warning && (
-        <Toast tone="alert" title="Custom colors weren't applied" onDismiss={layout.dismissWarning}>
-          {layout.warning}
+        <Toast tone="alert" title={layout.warning.title} onDismiss={layout.dismissWarning}>
+          {layout.warning.detail}
         </Toast>
       )}
 
@@ -325,6 +334,7 @@ function App() {
                 </RailSection>
               )}
               <ProfileList onApplied={handleProfileApplied} />
+              {clockFacesSupported && <ClockFaceList />}
               <RailSection
                 id="feeds"
                 title="Feeds"
@@ -341,7 +351,13 @@ function App() {
             <div className="workbench-main">
               <ScreenGrid selected={selected} onSelect={setSelected} />
 
-              {selected !== null && <ScreenEditor screen={selected} />}
+              {/* The builder takes the editor's place while it's open; the
+                  screens stay in view above it. */}
+              {clockFacesSupported && clockFaceEditing ? (
+                <ClockFaceBuilder />
+              ) : (
+                selected !== null && <ScreenEditor screen={selected} />
+              )}
             </div>
           </div>
         )}

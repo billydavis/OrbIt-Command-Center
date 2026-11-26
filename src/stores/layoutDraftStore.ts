@@ -21,7 +21,15 @@ import { SCREEN_COUNT, type ScreenSlot, type ScreenSlotInput } from "../lib/type
 // claudeUsage screen would read as dirty the moment it was opened.
 const CLAUDE_USAGE_LIVE = ["session", "week", "sessionResetsAt", "weekResetsAt", "changing"];
 
+//
+// analogClock reports `clockFaceHeld` (the clock face file the orb holds
+// for the screen) among its params. It isn't a setting, so it moves out
+// of them onto the slot, where clockFaceSync.ts reads it.
 function sanitizeSlot(slot: ScreenSlot): ScreenSlot {
+  if (slot.control === "analogClock" && "clockFaceHeld" in slot.params) {
+    const { clockFaceHeld, ...params } = slot.params;
+    return { ...slot, params, clockFaceHeld: typeof clockFaceHeld === "string" ? clockFaceHeld : null };
+  }
   if (slot.control === "asteroids") {
     return { ...slot, control: "screensaver", params: { effect: "asteroids" } };
   }

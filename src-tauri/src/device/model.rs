@@ -70,9 +70,35 @@ pub struct Capabilities {
     /// (so far just `makapix`) can be set to. `None` on firmware that
     /// doesn't report any, where only "random" and "none" are safe to send.
     pub transitions: Option<Vec<String>>,
+    /// Clock face files the `analogClock` control takes (PUT
+    /// /screens/{n}/clock-face). `None` on firmware without them, where the
+    /// clock only has its colour params.
+    pub clock_faces: Option<ClockFacesCapability>,
     /// Every widget in the firmware, in the order Left and Right step
     /// through them. `None` when only OrbIt's own endpoint answered.
     pub widgets: Option<Vec<WidgetCapabilities>>,
+}
+
+/// `clockFaces` in GET /orbit/api/v1/capabilities.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct ClockFacesCapability {
+    /// The clock face file format version the board reads.
+    pub file_version: u32,
+    /// The names the `clockFace` param takes ("classic", "platform", ...).
+    pub built_in: Vec<String>,
+}
+
+/// The board's answer to PUT /orbit/api/v1/screens/{n}/clock-face.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ClockFaceUploaded {
+    pub screen: u8,
+    /// First 16 hex digits of the SHA-256 of the body as sent.
+    pub clock_face_hash: String,
+    pub bytes: u64,
+    /// Whether the screen shows it now (it was showing `analogClock`).
+    pub shown: bool,
 }
 
 /// One widget's entry in GET /api/v1/capabilities (firmware source:
@@ -109,6 +135,7 @@ impl DeviceCapabilities {
             controls: orbit.controls.clone().unwrap_or_default(),
             screensaver_effects: orbit.screensaver_effects.clone(),
             transitions: None,
+            clock_faces: None,
             widgets: Some(self.widgets),
         })
     }

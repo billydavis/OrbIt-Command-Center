@@ -3,6 +3,7 @@ import type {
   BulkScreenSlotInput,
   ButtonPressed,
   Capabilities,
+  ClockFaceUploaded,
   CountdownAction,
   DiscoveredDevice,
   Feed,
@@ -10,6 +11,7 @@ import type {
   OrbButton,
   PressLength,
   Profile,
+  SavedClockFace,
   ScreenSlot,
   ScreenSlotInput,
   SystemInfo,
@@ -88,8 +90,25 @@ export function deleteProfile(id: string): Promise<void> {
   return invoke("delete_profile", { id });
 }
 
-export function applyProfile(id: string): Promise<ScreenSlot[]> {
-  return invoke("apply_profile", { id });
+/** Sends a clock face file to screen `n`, exactly as given (see lib/clockFaceRenderer.ts). */
+export function uploadClockFace(n: number, file: string): Promise<ClockFaceUploaded> {
+  return invoke("upload_clock_face", { n, file });
+}
+
+export function listClockFaces(): Promise<SavedClockFace[]> {
+  return invoke("list_clock_faces");
+}
+
+export function saveClockFace(name: string, recipe: unknown): Promise<SavedClockFace> {
+  return invoke("save_clock_face", { name, recipe });
+}
+
+export function updateClockFace(id: string, name: string, recipe: unknown): Promise<SavedClockFace> {
+  return invoke("update_clock_face", { id, name, recipe });
+}
+
+export function deleteClockFace(id: string): Promise<void> {
+  return invoke("delete_clock_face", { id });
 }
 
 export function listFeeds(): Promise<Feed[]> {

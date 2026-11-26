@@ -150,7 +150,7 @@ export function Flyout() {
             )}
             {layout.warning && (
               <p className="connection-settings-error" role="alert">
-                {layout.warning}
+                {layout.warning.detail}
               </p>
             )}
             <div className="flyout-bar-actions">

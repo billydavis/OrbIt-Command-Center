@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { getCurrentWebviewWindow } from "@tauri-apps/api/webviewWindow";
 import App from "./App";
 import { Flyout } from "./components/flyout/Flyout";
+import { ErrorBoundary } from "./components/shared/ErrorBoundary";
 import { FLYOUT_WINDOW, startWindowSync } from "./lib/windowSync";
 
 // One frontend, two windows: the main window shows the app, and the tray
@@ -11,5 +12,7 @@ const label = getCurrentWebviewWindow().label;
 void startWindowSync(label);
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>{label === FLYOUT_WINDOW ? <Flyout /> : <App />}</React.StrictMode>,
+  <React.StrictMode>
+    <ErrorBoundary>{label === FLYOUT_WINDOW ? <Flyout /> : <App />}</ErrorBoundary>
+  </React.StrictMode>,
 );

@@ -1435,6 +1435,230 @@ button.destructive:focus-visible {
   outline-offset: 2px;
 }
 
+/* ---- Clock faces (orbit-station's clock face files) ---- */
+
+/* A clock face drawn small: always round, on the orb's black glass. */
+.clock-face-thumb {
+  display: block;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background-color: #000;
+  flex-shrink: 0;
+}
+
+.clock-face-thumb-unknown {
+  display: grid;
+  place-items: center;
+  color: #bbb;
+  font-size: var(--text-md);
+}
+
+.clock-face-picker,
+.clock-face-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 0.4rem;
+}
+
+.clock-face-option,
+.clock-face-list-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0.5rem 0.35rem 0.4rem;
+  font-size: var(--text-xs);
+  font-weight: var(--weight-medium);
+  box-shadow: none;
+}
+
+.clock-face-option > span:last-child,
+.clock-face-list-item > span:last-child {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clock-face-option[aria-checked="true"],
+.clock-face-list-item[aria-pressed="true"] {
+  border-color: var(--color-signal);
+  background-color: var(--color-surface-tint);
+}
+
+.clock-face-list .clock-face-thumb {
+  width: 48px;
+  height: 48px;
+}
+
+.clock-face-builder {
+  width: 100%;
+  text-align: left;
+  border-top: 1px solid var(--color-divider);
+  padding-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.clock-face-builder h3 {
+  font-size: var(--text-md);
+  font-weight: var(--weight-semibold);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.clock-face-builder-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1.5rem 2rem;
+  align-items: start;
+}
+
+@media (max-width: 1080px) {
+  .clock-face-builder-body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.clock-face-builder-preview {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  position: sticky;
+  top: 0;
+  max-width: 100%;
+}
+
+.clock-face-builder-preview .field-hint,
+.clock-face-builder-preview .field-error {
+  max-width: 260px;
+  text-align: center;
+  margin: 0;
+}
+
+/* The screen at its real size, in a dark bezel like the mockup's. */
+.clock-face-bezel {
+  width: 240px;
+  height: 240px;
+  padding: 6px;
+  border-radius: 50%;
+  background-color: #050505;
+  box-shadow: 0 0 0 2px var(--color-divider), 0 8px 22px var(--color-shadow);
+}
+
+.clock-face-bezel svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.clock-face-bezel-zoom {
+  width: 480px;
+  height: 480px;
+  max-width: calc(100vw - 4rem);
+  max-height: calc(100vw - 4rem);
+}
+
+.clock-face-builder-options {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+  min-width: 0;
+}
+
+.clock-face-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+.clock-face-chips button {
+  padding: 0.3em 0.8em;
+  font-size: var(--text-sm);
+  box-shadow: none;
+  border-color: var(--color-divider);
+}
+
+.clock-face-chips button[aria-checked="true"] {
+  border-color: var(--color-signal);
+  background-color: var(--color-surface-tint);
+  font-weight: var(--weight-semibold);
+}
+
+.clock-face-colors {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0.9rem;
+}
+
+.clock-face-builder-actions {
+  align-items: center;
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--color-divider);
+}
+
+.clock-face-builder-spacer {
+  flex: 1;
+}
+
+.clock-face-save {
+  background-color: var(--color-signal);
+  color: var(--color-surface);
+  font-weight: var(--weight-semibold);
+}
+
+.clock-face-save:hover,
+.clock-face-save:focus-visible {
+  border-color: var(--color-text);
+}
+
+.clock-face-save:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.clock-face-presets {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem;
+}
+
+.clock-face-preset {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 1rem 0.9rem;
+  text-align: left;
+  box-shadow: none;
+  border-color: var(--color-divider);
+}
+
+.clock-face-preset-face {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background-color: #000;
+  box-shadow: 0 0 0 3px #050505, 0 4px 12px var(--color-shadow);
+  margin-bottom: 0.35rem;
+}
+
+.clock-face-preset-name {
+  align-self: stretch;
+  font-weight: var(--weight-semibold);
+}
+
+.clock-face-preset-note {
+  align-self: stretch;
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  opacity: 0.75;
+}
+
 .json-editor {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
@@ -2220,4 +2444,19 @@ button.destructive:focus-visible {
 .flyout-empty p {
   margin: 0;
   font-size: var(--text-sm);
+}
+
+/* The error boundary's stand-in for a window that failed to draw. */
+.app-crash {
+  padding: 24px;
+  max-width: 900px;
+}
+.app-crash pre {
+  white-space: pre-wrap;
+  font-size: 12px;
+  max-height: 50vh;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 6px;
+  background: rgba(127, 127, 127, 0.12);
 }

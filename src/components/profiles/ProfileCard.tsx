@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useProfilesStore } from "../../stores/profilesStore";
 import { useLayoutDraftStore } from "../../stores/layoutDraftStore";
 import { useToastStore } from "../../stores/toastStore";
-import { applyProfile } from "../../lib/tauriCommands";
+import { applyProfile } from "../../lib/applyProfile";
 import { profileSlotsFromDraft } from "../../lib/profileSlots";
 import { isNotBuiltError, keptOn, listOf, notBuiltIn } from "../../lib/capabilities";
 import { useDeviceStore } from "../../stores/deviceStore";
@@ -123,7 +123,7 @@ export function ProfileCard({ profile, onApplied }: ProfileCardProps) {
     setBusy("apply");
     dismissToast(toastKey);
     try {
-      await applyProfile(profile.id);
+      await applyProfile(profile);
       setActive(profile.id);
       onApplied();
     } catch (err) {

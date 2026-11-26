@@ -4,6 +4,9 @@ import { boundFeed } from "../../lib/feedBindings";
 import { rgb565ToHex } from "../../lib/rgb565";
 import type { Feed } from "../../lib/types";
 import { useFeedsStore } from "../../stores/feedsStore";
+import { useClockFacesStore } from "../../stores/clockFacesStore";
+import { builtInDrawing, drawingFor } from "../../lib/clockFaceRenderer";
+import { ClockFaceLayer } from "../clockfaces/ClockFaceLayer";
 
 interface ScreenPreviewProps {
   control: string;
@@ -84,41 +87,8 @@ function draw(control: string, p: Record<string, unknown>, now: Date, feeds: Fee
       );
     }
 
-    case "analogClock": {
-      const tick = color(p.tickColor, WHITE);
-      const second = color(p.secondColor, "#ff3b30");
-      const hourAngle = ((now.getHours() % 12) + now.getMinutes() / 60) * 30;
-      return (
-        <>
-          <circle cx="50" cy="50" r="50" fill={color(p.background, GLASS)} />
-          {Array.from({ length: 12 }, (_, i) => (
-            <line
-              key={i}
-              x1="50"
-              y1="10"
-              x2="50"
-              y2={i % 3 ? 14 : 17}
-              stroke={tick}
-              strokeWidth={i % 3 ? 1 : 2}
-              transform={`rotate(${i * 30} 50 50)`}
-            />
-          ))}
-          <line
-            x1="50" y1="50" x2="50" y2="28" strokeWidth="3.2" strokeLinecap="round"
-            stroke={color(p.hourColor, WHITE)} transform={`rotate(${hourAngle} 50 50)`}
-          />
-          <line
-            x1="50" y1="50" x2="50" y2="17" strokeWidth="2.2" strokeLinecap="round"
-            stroke={color(p.minuteColor, WHITE)} transform={`rotate(${now.getMinutes() * 6} 50 50)`}
-          />
-          <line
-            x1="50" y1="56" x2="50" y2="15" strokeWidth="1"
-            stroke={second} transform={`rotate(${now.getSeconds() * 6} 50 50)`}
-          />
-          <circle cx="50" cy="50" r="2.2" fill={second} />
-        </>
-      );
-    }
+    case "analogClock":
+      return <AnalogClockPreview params={p} now={now} />;
 
     case "gauge": {
       const source = boundFeed(p, "value");
@@ -552,4 +522,24 @@ function screensaver(effect: string, p: Record<string, unknown>): ReactNode {
       );
     }
   }
+}
+
+/**
+ * The clock as the orb draws it: the saved clock face the screen picks
+ * (`clockFaceId`), or else the built-in one it names (`clockFace`, classic
+ * with its colour params by default) — which is also what the orb falls
+ * back to when it doesn't hold the file.
+ */
+function AnalogClockPreview({ params: p, now }: { params: Record<string, unknown>; now: Date }) {
+  const face = useClockFacesStore((s) => s.faces.find((f) => f.id === p.clockFaceId));
+  const drawing = face ? drawingFor(face.recipe) : builtInDrawing(str(p.clockFace, "classic"), p);
+  return (
+    <g transform="scale(0.416667)">
+      <ClockFaceLayer
+        drawing={drawing}
+        now={now}
+        options={{ seconds: p.seconds !== false, timeZone: str(p.timeZone), zone2: str(p.zone2) }}
+      />
+    </g>
+  );
 }

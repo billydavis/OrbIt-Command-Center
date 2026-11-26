@@ -14,6 +14,14 @@ export interface ScreenSlot {
    * is written to the screen.
    */
   savedControl?: string;
+  /**
+   * analogClock only, on firmware with clock face files: the hash of the
+   * file the orb holds for this screen, or null for none. Reported as a
+   * param, moved here by layoutDraftStore so it isn't mistaken for a
+   * setting. When it isn't the screen's `clockFaceHash`, the orb is
+   * showing its built-in clock face instead (see lib/clockFaceSync.ts).
+   */
+  clockFaceHeld?: string | null;
 }
 
 export interface ScreenSlotInput {
@@ -62,10 +70,40 @@ export interface Capabilities {
    */
   transitions: string[] | null;
   /**
+   * Clock face files for analogClock (PUT /screens/{n}/clock-face). Null on
+   * firmware without them, where the clock has only its colour params.
+   */
+  clockFaces: ClockFacesCapability | null;
+  /**
    * Every widget in the firmware, in the order Left and Right step through
    * them. Null on firmware that only reports OrbIt's controls.
    */
   widgets: WidgetCapabilities[] | null;
+}
+
+export interface ClockFacesCapability {
+  fileVersion: number;
+  /** The names the `clockFace` param takes, e.g. "classic". */
+  builtIn: string[];
+}
+
+/** The orb's answer to a clock face upload. */
+export interface ClockFaceUploaded {
+  screen: number;
+  clockFaceHash: string;
+  bytes: number;
+  shown: boolean;
+}
+
+/**
+ * A clock face saved in the app (src-tauri/src/persistence/clock_faces.rs).
+ * `recipe` is the builder's choices; see lib/clockFaceRenderer.ts.
+ */
+export interface SavedClockFace {
+  id: string;
+  name: string;
+  createdAt: number;
+  recipe: unknown;
 }
 
 export interface WidgetCapabilities {

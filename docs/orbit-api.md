@@ -204,6 +204,35 @@ All controls are self-contained under `firmware/src/widgets/orbitwidget/` — Or
 
 This enum is expected to grow; adding a new `control` value should not require changing the endpoint shapes below.
 
+### `analogClock` clock faces (Orbit Station)
+
+Firmware that lists `clockFaces` in `GET /orbit/api/v1/capabilities` (Orbit Station so far) also takes clock face files: a dial picture plus hand outlines, made by Command Center's clock face builder. info-orbs firmware doesn't, and keeps only the five colour params above.
+
+```json
+"clockFaces": {"fileVersion": 1, "builtIn": ["classic", "platform", "minimal"]}
+```
+
+Extra `analogClock` params on that firmware (all settings, saved with the layout; a screen POST replaces all of them, so send the colours too):
+
+| param | default | meaning |
+|-------|---------|---------|
+| `clockFace` | `"classic"` | a built-in clock face from `builtIn`; classic uses the colour params |
+| `clockFaceId` | `""` | the uploaded clock face's name, for clients (Command Center's saved clock face id) |
+| `clockFaceHash` | `""` | show the uploaded file with this hash; `""` for the built-in `clockFace` |
+| `seconds` | `true` | show the second hand |
+| `motion` | `"tick"` | `"sweep"` moves the second hand smoothly (~10 fps) |
+| `secondsRing` | `false` | built-in faces only: a 3 px ring at radius 116 filling from 12 o'clock with the seconds, in the second hand's colour (the hour hand's on `minimal`); hidden with `seconds: false`. Firmware from before it ignores the key and doesn't report it |
+| `timeZone` | `""` | IANA name for the hands; `""` for the board's own. Unknown is a `400` |
+| `zone2` | `""` | a second timezone: a 24-hour hand and the city's name |
+
+`GET` also reports `clockFaceHeld`: the hash of the file the board holds for that screen, or `null`. When it isn't `clockFaceHash`, the board shows its built-in `clockFace`; send the file again.
+
+#### `PUT /orbit/api/v1/screens/{n}/clock-face`
+
+Body: the clock face file as JSON (at most 256 KB), stored byte for byte as that screen's only clock face file. Answer: `{"screen": 2, "clockFaceHash": "9e98832c511416d0", "bytes": 37534, "shown": true}`. The hash is the first 16 hex digits of the SHA-256 of the body as sent, so a client can work it out itself. A screen showing `analogClock` switches to it at once (`shown`). `400` bad file (left as it was), `413` too big, `503`/`507` no room. Each upload writes the board's flash: send one only when `clockFaceHeld` differs.
+
+The file format (dial as a base64 240x240 PNG, hands and cap as outlines and discs in face-radius units, optional date window, weekday, zone label and `secondsRing {radius, width, color}` in pixels; outlines that cross themselves fill both loops) is specified in orbit-station's `docs/clock-faces.md`; `src/lib/clockFaceRenderer.ts` is the app's writer of it.
+
 ## Endpoints
 
 ### `GET /orbit/api/v1/screens`

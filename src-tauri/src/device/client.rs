@@ -4,7 +4,8 @@ use serde::de::DeserializeOwned;
 
 use super::error::OrbitError;
 use super::model::{
-    BulkScreenSlotInput, BulkScreensRequest, ButtonPressed, Capabilities, CountdownAction,
+    BulkScreenSlotInput, BulkScreensRequest, ButtonPressed, Capabilities, ClockFaceUploaded,
+    CountdownAction,
     DeviceCapabilities, DeviceErrorBody, OrbButton, PressLength, ScreenSlot, ScreenSlotInput,
     ScreensResponse, SystemInfo,
 };
@@ -16,6 +17,9 @@ const CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
 // shares one loop with everything else it does, so a request that arrives
 // during a weather or ticker fetch waits for that to finish first.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
+// A clock face file is up to 256 KB, and the board decodes its PNG to check
+// it before it answers.
+const CLOCK_FACE_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// Thin wrapper around the orbit-api REST surface (docs/orbit-api.md).
 /// One method per endpoint; no retry/backoff here — callers (Tauri commands,
@@ -154,6 +158,20 @@ impl OrbitClient {
         self.send_json(self.http.post(url)).await
     }
 
+    /// Stores a clock face file for screen `n` (docs/orbit-api.md, "Clock
+    /// faces"). `file` is sent exactly as given: the board's hash is of
+    /// these bytes, which is how the app knows it without asking.
+    pub async fn put_clock_face(&self, n: u8, file: String) -> Result<ClockFaceUploaded, OrbitError> {
+        let url = format!("{}/screens/{n}/clock-face", self.base_url);
+        let request = self
+            .http
+            .put(url)
+            .timeout(CLOCK_FACE_TIMEOUT)
+            .header(reqwest::header::CONTENT_TYPE, "application/json")
+            .body(file);
+        self.send_json(request).await
+    }
+
     /// `countdown`'s params shape differs from every other control (an
     /// action verb, not full state) — worth a named wrapper rather than
     /// making callers build a raw `ScreenSlotInput` by hand.
@@ -259,6 +277,49 @@ mod tests {
             capabilities.screensaver_effects,
             Some(vec!["asteroids".to_string(), "radar".to_string()])
         );
+    }
+
+    #[tokio::test]
+    async fn put_clock_face_sends_the_file_as_is_and_reads_the_hash() {
+        let server = MockServer::start().await;
+        let file = r#"{"version":1,"dial":"AAAA","hands":{}}"#;
+        Mock::given(method("PUT"))
+            .and(path("/orbit/api/v1/screens/2/clock-face"))
+            .and(wiremock::matchers::body_string(file))
+            .and(wiremock::matchers::header("content-type", "application/json"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(
+                r#"{"screen": 2, "clockFaceHash": "9e98832c511416d0", "bytes": 37534, "shown": true}"#,
+                "application/json",
+            ))
+            .mount(&server)
+            .await;
+
+        let client = OrbitClient::with_base_url(format!("{}/orbit/api/v1", server.uri()));
+        let uploaded = client.put_clock_face(2, file.to_string()).await.expect("request should succeed");
+
+        assert_eq!(uploaded.clock_face_hash, "9e98832c511416d0");
+        assert!(uploaded.shown);
+    }
+
+    #[tokio::test]
+    async fn get_capabilities_reads_clock_faces() {
+        let server = MockServer::start().await;
+        let body = r#"{
+          "controls": ["analogClock"],
+          "clockFaces": {"fileVersion": 1, "builtIn": ["classic", "platform", "minimal"]}
+        }"#;
+        Mock::given(method("GET"))
+            .and(path("/orbit/api/v1/capabilities"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(body, "application/json"))
+            .mount(&server)
+            .await;
+
+        let client = OrbitClient::with_base_url(format!("{}/orbit/api/v1", server.uri()));
+        let capabilities = client.get_capabilities().await.expect("request should succeed");
+
+        let faces = capabilities.clock_faces.expect("clockFaces should be read");
+        assert_eq!(faces.file_version, 1);
+        assert_eq!(faces.built_in, vec!["classic", "platform", "minimal"]);
     }
 
     #[tokio::test]
