@@ -2,7 +2,6 @@ import { useEffect, useId, useState } from "react";
 import {
   as565,
   clockTime,
-  DEFAULT_ZONE_HAND,
   DEFAULT_ZONE_LABEL,
   dialUrl,
   handAngles,
@@ -136,11 +135,11 @@ export function ClockFaceLayer({ drawing, now, options = {} }: { drawing: FaceDr
         </g>
       )}
       {drawing.weekday && <Text spot={drawing.weekday}>{WEEKDAYS[t.weekday]}</Text>}
-      {zone2 && options.zone2 && (
+      {zone2 && options.zone2 && drawing.hands.zone && (
         <Text spot={drawing.zoneLabel ?? DEFAULT_ZONE_LABEL}>{zoneName(options.zone2)}</Text>
       )}
       {options.seconds !== false && drawing.secondsRing && <Ring ring={drawing.secondsRing} deg={a.second} />}
-      {zone2 && <Parts parts={drawing.hands.zone ?? DEFAULT_ZONE_HAND} deg={zoneAngle(zone2)} />}
+      {zone2 && <Parts parts={drawing.hands.zone} deg={zoneAngle(zone2)} />}
       <Parts parts={drawing.hands.hour} deg={a.hour} />
       <Parts parts={drawing.hands.minute} deg={a.minute} />
       {options.seconds !== false && <Parts parts={drawing.hands.second} deg={a.second} />}

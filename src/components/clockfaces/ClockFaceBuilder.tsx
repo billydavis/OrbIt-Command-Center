@@ -100,6 +100,9 @@ function PresetGallery({ onPick }: { onPick: (name: string, recipe: ClockFaceRec
  * what the screens show) beside the choices. Saving stores the recipe in
  * the app; screens using it get it on the next Apply.
  */
+/** The city the builder's preview shows a zone hand for. */
+const SAMPLE_ZONE = "Asia/Tokyo";
+
 export function ClockFaceBuilder() {
   const editor = useClockFacesStore((s) => s.editor)!;
   const editEditor = useClockFacesStore((s) => s.editEditor);
@@ -215,7 +218,9 @@ export function ClockFaceBuilder() {
         <div className="clock-face-builder-body">
           <div className="clock-face-builder-preview">
             <div className={`clock-face-bezel${zoom ? " clock-face-bezel-zoom" : ""}`}>
-              <ClockFaceView drawing={drawing} now={now} />
+              {/* A face with a zone hand shows it for a sample city; the real
+                  one is each screen's Second time zone setting. */}
+              <ClockFaceView drawing={drawing} now={now} options={recipe.zone ? { zone2: SAMPLE_ZONE } : undefined} />
             </div>
             <button type="button" aria-pressed={zoom} onClick={() => setZoom((z) => !z)}>
               {zoom ? "Actual size" : "Zoom 2×"}
@@ -293,6 +298,10 @@ export function ClockFaceBuilder() {
               <label className="field-checkbox">
                 <input type="checkbox" checked={recipe.ring} onChange={(e) => setRecipe({ ring: e.target.checked })} />
                 Seconds ring round the rim (hidden when a screen turns the second hand off)
+              </label>
+              <label className="field-checkbox">
+                <input type="checkbox" checked={recipe.zone} onChange={(e) => setRecipe({ zone: e.target.checked })} />
+                Second time zone hand (each screen picks the city; shown here for {SAMPLE_ZONE})
               </label>
               <label className="field-checkbox">
                 <input

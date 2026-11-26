@@ -119,6 +119,9 @@ function ClockFaceForm({ screen, initialParams, onChange, builtIn }: ControlForm
   const saved = faces.find((f) => f.id === savedId);
   const thumbTime = useMemo(thumbnailTime, []);
   const builtInName = str(params.clockFace);
+  // Only a face with a zone hand takes a second time zone: the built-in
+  // ones, and saved ones made with it (one not saved here: can't tell).
+  const takesZone = !savedId || !saved || saved.recipe.zone;
 
   return (
     <div className="control-form">
@@ -220,15 +223,17 @@ function ClockFaceForm({ screen, initialParams, onChange, builtIn }: ControlForm
             onChange={(e) => set({ timeZone: e.target.value.trim() })}
           />
         </label>
-        <label className="field">
-          Second time zone
-          <input
-            list="clock-time-zones"
-            placeholder="None"
-            value={str(params.zone2)}
-            onChange={(e) => set({ zone2: e.target.value.trim() })}
-          />
-        </label>
+        {takesZone && (
+          <label className="field">
+            Second time zone
+            <input
+              list="clock-time-zones"
+              placeholder="None"
+              value={str(params.zone2)}
+              onChange={(e) => set({ zone2: e.target.value.trim() })}
+            />
+          </label>
+        )}
       </div>
       <datalist id="clock-time-zones">
         {TIME_ZONES.map((tz) => (
@@ -236,8 +241,9 @@ function ClockFaceForm({ screen, initialParams, onChange, builtIn }: ControlForm
         ))}
       </datalist>
       <p className="field-hint">
-        A city's IANA name, like Europe/London. The second time zone adds a hand that goes round once a
-        day and the city's name on the dial.
+        {takesZone
+          ? "A city's IANA name, like Europe/London. The second time zone adds a hand that goes round once a day and the city's name on the dial."
+          : "A city's IANA name, like Europe/London. This clock face has no second time zone hand; add one in the builder to show a second city."}
       </p>
 
       {!savedId && builtInName === "classic" && (

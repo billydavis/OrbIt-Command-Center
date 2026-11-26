@@ -48,6 +48,12 @@ export interface ClockFaceRecipe {
    * second hand's colour (the hands' when there's no second hand).
    */
   ring: boolean;
+  /**
+   * A hand for a second time zone (the mockup's orange arrow, on a 24-hour
+   * scale) and the city's name. Only a face with one takes a screen's
+   * second time zone; which city is the screen's setting (`zone2`).
+   */
+  zone: boolean;
   colors: { background: string; dial: string; hands: string; second: string };
 }
 
@@ -100,6 +106,7 @@ const base = (r: Partial<ClockFaceRecipe> & { colors: ClockFaceRecipe["colors"] 
   weekday: false,
   edges: false,
   ring: false,
+  zone: false,
   ...r,
 });
 
@@ -149,7 +156,7 @@ export const PRESETS: { name: string; note: string; recipe: ClockFaceRecipe }[] 
     name: "Night sky",
     note: "Stars, Arabic numerals and sword hands. Good with a second time zone.",
     recipe: base({
-      dial: "arabic", hands: "sword", background: "nightSky", weekday: true,
+      dial: "arabic", hands: "sword", background: "nightSky", weekday: true, zone: true,
       colors: { background: "#000000", dial: "#c9ccd1", hands: "#ffffff", second: "#4fd1c5" },
     }),
   },
@@ -182,6 +189,7 @@ export function readRecipe(raw: unknown): ClockFaceRecipe {
     weekday: !!r.weekday,
     edges: !!r.edges,
     ring: !!r.ring,
+    zone: !!r.zone,
     colors: {
       background: hex(c.background, "#000000"),
       dial: hex(c.dial, "#ffffff"),
@@ -363,6 +371,7 @@ export function drawingFor(recipe: ClockFaceRecipe): FaceDrawing {
       hour: handParts(recipe.hands, 58, 9, colors.hands, recipe.edges),
       minute: handParts(recipe.hands, 88, 7, colors.hands, recipe.edges),
       second: secondParts(recipe.seconds, colors.second, recipe.edges),
+      ...(recipe.zone ? { zone: DEFAULT_ZONE_HAND } : {}),
     },
     cap,
   };
@@ -384,7 +393,9 @@ const hex565 = (v: unknown, fallback: string) => (typeof v === "number" ? rgb565
 
 /** A built-in clock face by its `clockFace` name; classic takes the colour params. */
 export function builtInDrawing(name: string, params: Record<string, unknown>): FaceDrawing {
+  // The built-in faces all take a second time zone, with the board's own hand.
   const drawing = builtInFace(name, params);
+  drawing.hands.zone = DEFAULT_ZONE_HAND;
   // The `secondsRing` param: the second hand's colour, or the hour hand's
   // on a face without one (minimal).
   if (params.secondsRing === true) {

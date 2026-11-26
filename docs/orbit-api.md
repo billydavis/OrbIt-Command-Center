@@ -223,7 +223,7 @@ Extra `analogClock` params on that firmware (all settings, saved with the layout
 | `motion` | `"tick"` | `"sweep"` moves the second hand smoothly (~10 fps) |
 | `secondsRing` | `false` | built-in faces only: a 3 px ring at radius 116 filling from 12 o'clock with the seconds, in the second hand's colour (the hour hand's on `minimal`); hidden with `seconds: false`. Firmware from before it ignores the key and doesn't report it |
 | `timeZone` | `""` | IANA name for the hands; `""` for the board's own. Unknown is a `400` |
-| `zone2` | `""` | a second timezone: a 24-hour hand and the city's name |
+| `zone2` | `""` | a second timezone: a 24-hour hand and the city's name. Only on faces with a zone hand: the built-in ones, and files with `hands.zone` (the builder's "Second time zone hand"); firmware before that drew a default hand on any face |
 
 `GET` also reports `clockFaceHeld`: the hash of the file the board holds for that screen, or `null`. When it isn't `clockFaceHash`, the board shows its built-in `clockFace`; send the file again.
 
