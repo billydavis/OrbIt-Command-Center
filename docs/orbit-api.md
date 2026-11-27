@@ -233,6 +233,40 @@ Body: the clock face file as JSON (at most 256 KB), stored byte for byte as that
 
 The file format (dial as a base64 240x240 PNG, hands and cap as outlines and discs in face-radius units, optional date window, weekday, zone label and `secondsRing {radius, width, color}` in pixels; outlines that cross themselves fill both loops) is specified in orbit-station's `docs/clock-faces.md`; `src/lib/clockFaceRenderer.ts` is the app's writer of it.
 
+
+### `picture` control (Orbit Station)
+
+Your own pictures, one or a slideshow; animated GIFs play. Firmware that has it lists `"picture"` in `controls` and a `pictures` object in `GET /orbit/api/v1/capabilities`; offer it only then:
+
+```json
+"pictures": {"maxBytes": 1048576, "width": 240, "height": 240, "formats": ["jpeg", "png", "gif", "webp"]}
+```
+
+The client makes each picture: exactly 240x240 (the board never scales or crops; the screen is round, so the corners don't show), at most 1 MB. JPEG must be baseline (progressive is refused); JPEG suits photos (~20-30 KB), PNG graphics. A GIF plays (about 10-15 fps for frames that change the whole screen, slower than its own rate if that's faster); an animated WebP shows its first frame only.
+
+Params (all settings, saved with the layout; no live values):
+
+| param | default | meaning |
+|-------|---------|---------|
+| `pictures` | `[]` | the pictures, by hash, in order (up to 24) |
+| `seconds` | `30` | how long each stays, 5-86400; an animation loops for that long |
+| `order` | `"list"` | `"shuffle"`: a new order each round, never the same picture twice in a row |
+| `transition` | `"random"` | `"none"`, or an effect from `transitions` in capabilities |
+
+`GET` also reports `picturesMissing`: the listed pictures the board doesn't hold. They're skipped until uploaded, and show as soon as they are.
+
+#### The picture store
+
+A picture's name is its hash: the first 16 hex digits (lower case) of the SHA-256 of the file. The board stores each once and shares it between screens.
+
+- `PUT /orbit/api/v1/pictures/{hash}`: the body is the file itself (not a form, not base64), with its `Content-Length`. Answer: `{"hash": "3761362fe84b9dea", "bytes": 5744, "format": "jpeg", "stored": true}`; `stored` is `false` if the board already had it. `400` bad name, wrong hash, not a picture, not 240x240, progressive JPEG, or a form; `413` over 1 MB (answered at once and the connection closed); `507` no room; `500` couldn't write it.
+- `GET /orbit/api/v1/pictures`: `{"pictures": [{"hash": "...", "bytes": 5744, "inUse": true}], "bytes": 5744, "roomBytes": 3315763, "maxBytes": 1048576}`. `inUse`: a screen lists it. `roomBytes`: the most the next upload can be.
+- `GET /orbit/api/v1/pictures/{hash}`: the file as stored (`404` if not held).
+- `DELETE /orbit/api/v1/pictures/{hash}`: `{"removed": "..."}`; `404` not held, `409` a screen lists it.
+
+The store holds ~3.3 MB. Pictures no screen lists stay as a cache and are removed, oldest first, only when an upload needs the room; a listed picture is never removed.
+
+Uploads write the board's flash at ~40-50 KB/s (a photo under a second, a 1 MB GIF ~20 s); the board answers nothing else meanwhile, and animated screens slow down while it writes. So upload only what the board lacks (`GET .../pictures`, or `picturesMissing`), one at a time, and before the screen write that lists them. Full details in orbit-station's `docs/pictures.md`.
 ## Endpoints
 
 ### `GET /orbit/api/v1/screens`
