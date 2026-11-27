@@ -4,12 +4,13 @@ use tauri::{AppHandle, State};
 
 use crate::device::{
     BulkScreenSlotInput, ButtonPressed, Capabilities, ClockFaceUploaded, CountdownAction, OrbButton, OrbPictures,
-    OrbitClient, OrbitError, PressLength, ScreenSlot, ScreenSlotInput, SystemInfo,
+    OrbitClient, OrbitError, PictureStored, PressLength, ScreenSlot, ScreenSlotInput, SystemInfo,
 };
 use crate::discovery::{self, DiscoveredDevice};
 use crate::feeds::bindings::{self, ScreenBinding};
 use crate::feeds::{Feed, FeedServerStatus};
 use crate::persistence::{clock_face_store, profile_store, ClockFace, Profile, ProfileError};
+use crate::pictures::{prepare, Library, Picture, PictureError};
 use crate::state::AppState;
 
 /// Probes the device at `host` (GET /screens) and, on success, stores the
@@ -225,6 +226,98 @@ pub async fn upload_clock_face(
     with_device(&state, |client| async move { client.put_clock_face(n, file).await }).await
 }
 
+/// The pictures in the app's library, in the order they were added.
+#[tauri::command]
+pub fn list_pictures(app: AppHandle) -> Result<Vec<Picture>, PictureError> {
+    Ok(Library::for_app(&app)?.list())
+}
+
+/// Adds a picture to the library from any JPEG, PNG, GIF, WebP or BMP file,
+/// made into the 240x240 file the orb takes (pictures/prepare.rs). The body
+/// is the file's bytes, raw; its name comes in the `x-picture-name` header,
+/// percent-encoded (headers only carry ASCII). Making a GIF's frames can
+/// take a few seconds, so it's done off the async runtime.
+#[tauri::command]
+pub async fn import_picture(app: AppHandle, request: tauri::ipc::Request<'_>) -> Result<Picture, PictureError> {
+    let tauri::ipc::InvokeBody::Raw(bytes) = request.body() else {
+        return Err(PictureError::Prepare(prepare::PrepareError::NotAPicture));
+    };
+    if bytes.len() > prepare::MAX_INPUT_BYTES {
+        return Err(PictureError::Prepare(prepare::PrepareError::InputTooBig));
+    }
+    let name = request
+        .headers()
+        .get("x-picture-name")
+        .and_then(|v| v.to_str().ok())
+        .map(percent_decode)
+        .unwrap_or_default();
+    let bytes = bytes.clone();
+    let library = Library::for_app(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let prepared = prepare::prepare(&bytes)?;
+        library.add(&name, prepared)
+    })
+    .await
+    .map_err(|e| PictureError::Io(e.to_string()))?
+}
+
+#[tauri::command]
+pub fn rename_picture(app: AppHandle, hash: String, name: String) -> Result<Picture, PictureError> {
+    Library::for_app(&app)?.rename(&hash, &name)
+}
+
+/// Takes a picture out of the app's library. The orb keeps its copy until
+/// it needs the room (or it's deleted there with `delete_orb_picture`).
+#[tauri::command]
+pub fn delete_picture(app: AppHandle, hash: String) -> Result<(), PictureError> {
+    Library::for_app(&app)?.delete(&hash)
+}
+
+/// A library picture's file, raw (an ArrayBuffer in the frontend), for
+/// showing it.
+#[tauri::command]
+pub fn read_picture(app: AppHandle, hash: String) -> Result<tauri::ipc::Response, PictureError> {
+    Ok(tauri::ipc::Response::new(Library::for_app(&app)?.read(&hash)?))
+}
+
+/// Sends a library picture to the orb's picture store. Slow (up to ~20 s for
+/// a 1 MB GIF) and the orb answers nothing else meanwhile, so send only what
+/// it lacks. A write to its flash, so it shares `device_writes` with the
+/// layout writes.
+#[tauri::command]
+pub async fn upload_picture(
+    app: AppHandle,
+    hash: String,
+    state: State<'_, AppState>,
+) -> Result<PictureStored, OrbitError> {
+    let file = Library::for_app(&app)
+        .and_then(|library| library.read(&hash))
+        .map_err(|e| OrbitError::Other(e.to_string()))?;
+    let _writing = state.device_writes.lock().await;
+    with_device(&state, |client| async move { client.put_picture(&hash, file).await }).await
+}
+
+/// `%XX` escapes back to bytes, as `encodeURIComponent` made them. A
+/// malformed escape is kept as it is.
+fn percent_decode(text: &str) -> String {
+    let bytes = text.as_bytes();
+    let mut out = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        // `to_str` only lets visible ASCII through, so slicing by byte is safe.
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let Ok(byte) = u8::from_str_radix(&text[i + 1..i + 3], 16) {
+                out.push(byte);
+                i += 3;
+                continue;
+            }
+        }
+        out.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
+}
+
 /// What the orb's picture store holds and the room left in it.
 #[tauri::command]
 pub async fn list_orb_pictures(state: State<'_, AppState>) -> Result<OrbPictures, OrbitError> {
@@ -382,4 +475,16 @@ fn with_binding(state: &AppState, mut slot: ScreenSlot) -> ScreenSlot {
 
 fn with_bindings(state: &AppState, slots: Vec<ScreenSlot>) -> Vec<ScreenSlot> {
     slots.into_iter().map(|slot| with_binding(state, slot)).collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::percent_decode;
+
+    #[test]
+    fn picture_names_come_back_as_encodeuricomponent_sent_them() {
+        assert_eq!(percent_decode("Caf%C3%A9%20at%20night"), "Café at night");
+        assert_eq!(percent_decode("100%"), "100%");
+        assert_eq!(percent_decode("%zz"), "%zz");
+    }
 }

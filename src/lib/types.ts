@@ -111,6 +111,29 @@ export interface PicturesCapability {
   formats: string[];
 }
 
+/**
+ * A picture in the app's library (src-tauri/src/pictures/library.rs): a
+ * 240x240 file the orb takes, kept so it can be sent again to an orb that's
+ * lost it. Screens name it by `hash`, as the orb does.
+ */
+export interface LibraryPicture {
+  hash: string;
+  name: string;
+  format: "jpeg" | "png" | "gif";
+  bytes: number;
+  /** 1 for a still. */
+  frames: number;
+  addedAt: number;
+}
+
+/** The orb's answer to a picture upload; `stored` is false if it already had it. */
+export interface PictureStored {
+  hash: string;
+  bytes: number;
+  format: string;
+  stored: boolean;
+}
+
 /** GET /orbit/api/v1/pictures: what the orb's picture store holds. */
 export interface OrbPictures {
   /** `inUse`: a screen lists it, so the orb won't remove or delete it. */

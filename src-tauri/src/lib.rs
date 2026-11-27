@@ -4,6 +4,7 @@ mod discovery;
 mod feeds;
 mod heartbeat;
 mod persistence;
+mod pictures;
 mod state;
 mod sysmonitor;
 mod tray;
@@ -50,6 +51,12 @@ pub fn run() {
             commands::update_profile,
             commands::delete_profile,
             commands::upload_clock_face,
+            commands::list_pictures,
+            commands::import_picture,
+            commands::rename_picture,
+            commands::delete_picture,
+            commands::read_picture,
+            commands::upload_picture,
             commands::list_orb_pictures,
             commands::delete_orb_picture,
             commands::list_clock_faces,

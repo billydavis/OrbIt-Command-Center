@@ -9,7 +9,9 @@ import type {
   Feed,
   FeedServerStatus,
   OrbButton,
+  LibraryPicture,
   OrbPictures,
+  PictureStored,
   PressLength,
   Profile,
   SavedClockFace,
@@ -94,6 +96,40 @@ export function deleteProfile(id: string): Promise<void> {
 /** Sends a clock face file to screen `n`, exactly as given (see lib/clockFaceRenderer.ts). */
 export function uploadClockFace(n: number, file: string): Promise<ClockFaceUploaded> {
   return invoke("upload_clock_face", { n, file });
+}
+
+// Picture library commands reject with a plain message to show as it is.
+
+export function listPictures(): Promise<LibraryPicture[]> {
+  return invoke("list_pictures");
+}
+
+/**
+ * Adds a picture file (JPEG, PNG, GIF, WebP or BMP) to the library, made
+ * into the 240x240 file the orb takes. The bytes go raw, not as JSON; the
+ * name goes in a header, which carries ASCII only, hence the encoding.
+ */
+export function importPicture(name: string, file: ArrayBuffer): Promise<LibraryPicture> {
+  return invoke("import_picture", file, { headers: { "x-picture-name": encodeURIComponent(name) } });
+}
+
+export function renamePicture(hash: string, name: string): Promise<LibraryPicture> {
+  return invoke("rename_picture", { hash, name });
+}
+
+/** Takes a picture out of the library; the orb keeps its copy. */
+export function deletePicture(hash: string): Promise<void> {
+  return invoke("delete_picture", { hash });
+}
+
+/** A library picture's file, as the orb takes it. */
+export function readPicture(hash: string): Promise<ArrayBuffer> {
+  return invoke("read_picture", { hash });
+}
+
+/** Sends a library picture to the orb. Slow, and the orb answers nothing else meanwhile. */
+export function uploadPicture(hash: string): Promise<PictureStored> {
+  return invoke("upload_picture", { hash });
 }
 
 /** What the orb's picture store holds, and the room left in it. */
