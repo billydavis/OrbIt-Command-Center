@@ -88,6 +88,14 @@ const ICON_PATHS: Record<ControlType, React.ReactNode> = {
       <rect x="14" y="14" width="6" height="6" fill="currentColor" stroke="none" />
     </>
   ),
+  // A framed landscape: a sun over hills.
+  picture: (
+    <>
+      <rect x="3.5" y="5" width="17" height="14" rx="1.5" />
+      <circle cx="9" cy="10" r="1.6" />
+      <path d="M3.5 17l5-4.5 3.5 3 3-2.5 5.5 4.5" />
+    </>
+  ),
   // A spark of uneven rays, like the logo the control draws.
   claudeUsage: (
     <path d="M12 3.5v4.5M12 16v4.5M3.5 12H8M16 12h4.5M6 6l3.2 3.2M14.8 14.8 18 18M18 6l-3.2 3.2M9.2 14.8 6.6 17.4" />

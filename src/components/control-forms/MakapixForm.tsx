@@ -9,6 +9,7 @@ import {
   type MakapixChannel,
 } from "../../lib/controlSchemas";
 import { builtTransitions } from "../../lib/capabilities";
+import { TRANSITION_LABELS } from "../../lib/controlLabels";
 import { useDeviceStore } from "../../stores/deviceStore";
 import { useEmitOnChange } from "./useEmitOnChange";
 import type { ControlFormProps } from "./types";
@@ -37,26 +38,6 @@ const SORT_LABELS: Record<(typeof MAKAPIX_SORTS)[number], string> = {
 const FIT_LABELS: Record<(typeof MAKAPIX_FITS)[number], string> = {
   crisp: "Crisp (pixel-perfect, centered on black)",
   fill: "Fill the screen (edges may be trimmed)",
-};
-
-// Known transitions read better with a space than camelCase/raw; anything
-// the device lists that isn't one of these just shows as itself.
-const TRANSITION_LABELS: Record<string, string> = {
-  random: "Random",
-  none: "None (cut)",
-  crossfade: "Crossfade",
-  fade: "Fade",
-  slide: "Slide",
-  wipe: "Wipe",
-  iris: "Iris",
-  blinds: "Blinds",
-  mosaic: "Mosaic",
-  dissolve: "Dissolve",
-  melt: "Melt",
-  checkerboard: "Checkerboard",
-  scanline: "Scanline",
-  rain: "Rain",
-  sweep: "Sweep",
 };
 
 // Pixel art from Makapix Club — Orbit Station's own addition to orbit-api

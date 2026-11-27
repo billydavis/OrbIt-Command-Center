@@ -54,6 +54,7 @@ export const CONTROL_TYPES = [
   "screensaver",
   "countdown",
   "makapix",
+  "picture",
   "claudeUsage",
 ] as const;
 

@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { create } from "zustand";
 import {
   deletePicture,
@@ -101,8 +102,11 @@ export const usePicturesStore = create<PicturesState>((set, get) => {
       let pending = loading.get(hash);
       if (!pending) {
         pending = (async () => {
-          const picture = get().pictures.find((p) => p.hash === hash);
-          if (!picture) return undefined;
+          const picture = (await loadedPictures()).find((p) => p.hash === hash);
+          if (!picture) {
+            loading.delete(hash); // it may be added later
+            return undefined;
+          }
           try {
             const blob = new Blob([await readPicture(hash)], { type: MIME[picture.format] });
             const url = URL.createObjectURL(blob);
@@ -125,4 +129,13 @@ export async function loadedPictures(): Promise<LibraryPicture[]> {
   const store = usePicturesStore.getState();
   if (!store.loaded) await store.refresh();
   return usePicturesStore.getState().pictures;
+}
+
+/** Loads the library for the window it runs in, once. */
+export function usePictureLibrary() {
+  const loaded = usePicturesStore((s) => s.loaded);
+  const refresh = usePicturesStore((s) => s.refresh);
+  useEffect(() => {
+    if (!loaded) void refresh().catch(() => {});
+  }, [loaded, refresh]);
 }

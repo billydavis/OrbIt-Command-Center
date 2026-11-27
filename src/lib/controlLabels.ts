@@ -16,5 +16,27 @@ export const CONTROL_LABELS: Record<ControlType, string> = {
   screensaver: "Screensaver",
   countdown: "Countdown",
   makapix: "Makapix",
+  picture: "Pictures",
   claudeUsage: "Claude Usage",
+};
+
+// The `transition` choices of controls that change from one picture to the
+// next (makapix, picture). Known ones read better with a space than raw;
+// anything the device lists that isn't one of these shows as itself.
+export const TRANSITION_LABELS: Record<string, string> = {
+  random: "Random",
+  none: "None (cut)",
+  crossfade: "Crossfade",
+  fade: "Fade",
+  slide: "Slide",
+  wipe: "Wipe",
+  iris: "Iris",
+  blinds: "Blinds",
+  mosaic: "Mosaic",
+  dissolve: "Dissolve",
+  melt: "Melt",
+  checkerboard: "Checkerboard",
+  scanline: "Scanline",
+  rain: "Rain",
+  sweep: "Sweep",
 };

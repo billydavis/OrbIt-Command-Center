@@ -15,6 +15,9 @@ import {
 // firmware from before that was a choice, or not asked yet: everything.
 
 export function controlBuilt(capabilities: Capabilities | null, control: string): boolean {
+  // Pictures need the picture store as well, which firmware from before
+  // capabilities (null) never had.
+  if (control === "picture") return !!capabilities?.pictures && capabilities.controls.includes(control);
   return capabilities === null || capabilities.controls.includes(control);
 }
 
@@ -44,7 +47,7 @@ export function builtEffects(capabilities: Capabilities | null): ScreensaverEffe
 
 /**
  * The `transition` choices to offer a control that animates between
- * pictures (so far just makapix), as the orb lists them. Unlike a control
+ * pictures (makapix and picture), as the orb lists them. Unlike a control
  * or screensaver effect, there's no fixed app-side list this narrows down —
  * firmware that doesn't report any (or hasn't been asked) is only known to
  * accept "random" and "none".

@@ -10,6 +10,7 @@ import { FeedsDrawer } from "./components/feeds/FeedsDrawer";
 import { FeedsPanel } from "./components/feeds/FeedsPanel";
 import { OrbButtons } from "./components/device/OrbButtons";
 import { ClockFaceBuilder } from "./components/clockfaces/ClockFaceBuilder";
+import { PictureList } from "./components/pictures/PictureList";
 import { ClockFaceList } from "./components/clockfaces/ClockFaceList";
 import { RailSection } from "./components/rail/RailSection";
 import { StatusBar } from "./components/status/StatusBar";
@@ -18,7 +19,7 @@ import { ToastStack } from "./components/status/ToastStack";
 import { useApplyLayout } from "./hooks/useApplyLayout";
 import { useApplyTheme } from "./hooks/useApplyTheme";
 import { useClockFaceDrafts } from "./hooks/useClockFaceDrafts";
-import { hasButtons } from "./lib/capabilities";
+import { controlBuilt, hasButtons } from "./lib/capabilities";
 import { getScreens, setShowInTaskbar } from "./lib/tauriCommands";
 import { IS_WINDOWS } from "./lib/platform";
 import {
@@ -188,6 +189,8 @@ function App() {
   // takes clock face files.
   const clockFacesSupported = useDeviceStore((s) => !!s.capabilities?.clockFaces);
   const clockFaceEditing = useClockFacesStore((s) => s.editor !== null);
+  // The picture library, only for firmware with the picture control.
+  const picturesSupported = useDeviceStore((s) => controlBuilt(s.capabilities, "picture"));
 
   // A profile stays highlighted until the layout is changed away from it,
   // or the orb is gone. Keyed on the draft itself, not just on being
@@ -335,6 +338,7 @@ function App() {
               )}
               <ProfileList onApplied={handleProfileApplied} />
               {clockFacesSupported && <ClockFaceList />}
+              {picturesSupported && <PictureList />}
               <RailSection
                 id="feeds"
                 title="Feeds"

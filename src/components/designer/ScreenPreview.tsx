@@ -1,10 +1,11 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import { CLAUDE_USAGE_FEEDS, type ClaudeUsageReading } from "../../lib/controlSchemas";
 import { boundFeed } from "../../lib/feedBindings";
 import { rgb565ToHex } from "../../lib/rgb565";
 import type { Feed } from "../../lib/types";
 import { useFeedsStore } from "../../stores/feedsStore";
 import { useClockFacesStore } from "../../stores/clockFacesStore";
+import { usePicturesStore } from "../../stores/picturesStore";
 import { builtInDrawing, drawingFor } from "../../lib/clockFaceRenderer";
 import { ClockFaceLayer } from "../clockfaces/ClockFaceLayer";
 
@@ -297,6 +298,9 @@ function draw(control: string, p: Record<string, unknown>, now: Date, feeds: Fee
       );
     }
 
+    case "picture":
+      return <PicturePreview params={p} now={now} />;
+
     case "claudeUsage":
       return claudeUsage(p, feedValue);
 
@@ -541,5 +545,55 @@ function AnalogClockPreview({ params: p, now }: { params: Record<string, unknown
         options={{ seconds: p.seconds !== false, timeZone: str(p.timeZone), zone2: str(p.zone2) }}
       />
     </g>
+  );
+}
+
+/**
+ * The picture a picture screen is on: the real file from the library (an
+ * animated GIF plays), taking turns every `seconds` like the orb. Shuffle
+ * and transitions are left to the orb. With nothing to show, the words the
+ * orb shows.
+ */
+function PicturePreview({ params, now }: { params: Record<string, unknown>; now: Date }) {
+  const clipId = useId();
+  const hashes = Array.isArray(params.pictures) ? params.pictures.filter((h): h is string => typeof h === "string") : [];
+  const seconds = Math.max(5, num(params.seconds, 30));
+  const hash = hashes.length ? hashes[Math.floor(now.getTime() / 1000 / seconds) % hashes.length] : undefined;
+  const url = usePicturesStore((s) => (hash ? s.urls[hash] : undefined));
+  const loadUrl = usePicturesStore((s) => s.loadUrl);
+  useEffect(() => {
+    if (hash && !url) void loadUrl(hash);
+  }, [hash, url, loadUrl]);
+
+  if (!hash) {
+    return (
+      <>
+        <g fill="none" stroke={DIM} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="33" y="34" width="34" height="27" rx="3" />
+          <circle cx="44" cy="44" r="3.2" />
+          <path d="M33 57l10-9 7 6 6-5 11 9" />
+        </g>
+        <text x="50" y="76" fontSize="7" fill={DIM}>
+          No pictures
+        </text>
+      </>
+    );
+  }
+  if (!url) {
+    return (
+      <g fill="none" stroke={TRACK} strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <rect x="33" y="36" width="34" height="27" rx="3" />
+        <circle cx="44" cy="46" r="3.2" />
+        <path d="M33 59l10-9 7 6 6-5 11 9" />
+      </g>
+    );
+  }
+  return (
+    <>
+      <clipPath id={clipId}>
+        <circle cx="50" cy="50" r="50" />
+      </clipPath>
+      <image href={url} x="0" y="0" width="100" height="100" clipPath={`url(#${clipId})`} preserveAspectRatio="xMidYMid slice" />
+    </>
   );
 }
