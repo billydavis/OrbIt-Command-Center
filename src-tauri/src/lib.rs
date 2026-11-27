@@ -50,6 +50,8 @@ pub fn run() {
             commands::update_profile,
             commands::delete_profile,
             commands::upload_clock_face,
+            commands::list_orb_pictures,
+            commands::delete_orb_picture,
             commands::list_clock_faces,
             commands::save_clock_face,
             commands::update_clock_face,

@@ -74,6 +74,9 @@ pub struct Capabilities {
     /// /screens/{n}/clock-face). `None` on firmware without them, where the
     /// clock only has its colour params.
     pub clock_faces: Option<ClockFacesCapability>,
+    /// The picture store the `picture` control shows from (PUT
+    /// /pictures/{hash}). `None` on firmware without it.
+    pub pictures: Option<PicturesCapability>,
     /// Every widget in the firmware, in the order Left and Right step
     /// through them. `None` when only OrbIt's own endpoint answered.
     pub widgets: Option<Vec<WidgetCapabilities>>,
@@ -87,6 +90,52 @@ pub struct ClockFacesCapability {
     pub file_version: u32,
     /// The names the `clockFace` param takes ("classic", "platform", ...).
     pub built_in: Vec<String>,
+}
+
+/// `pictures` in GET /orbit/api/v1/capabilities: what a picture file has
+/// to be. The board never scales or crops, so the client makes it exactly
+/// `width` x `height`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase", default)]
+pub struct PicturesCapability {
+    pub max_bytes: u64,
+    pub width: u32,
+    pub height: u32,
+    /// "jpeg", "png", "gif", "webp".
+    pub formats: Vec<String>,
+}
+
+/// The board's answer to PUT /orbit/api/v1/pictures/{hash}.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+pub struct PictureStored {
+    pub hash: String,
+    pub bytes: u64,
+    pub format: String,
+    /// `false` when the board already had it (nothing was written).
+    pub stored: bool,
+}
+
+/// One entry of GET /orbit/api/v1/pictures.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct OrbPicture {
+    pub hash: String,
+    pub bytes: u64,
+    /// A screen lists it, so the board won't remove or delete it.
+    pub in_use: bool,
+}
+
+/// GET /orbit/api/v1/pictures: what the board's picture store holds.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct OrbPictures {
+    pub pictures: Vec<OrbPicture>,
+    /// All the pictures together.
+    pub bytes: u64,
+    /// The most the next upload can be, counting the room unused pictures
+    /// would give up.
+    pub room_bytes: u64,
+    pub max_bytes: u64,
 }
 
 /// The board's answer to PUT /orbit/api/v1/screens/{n}/clock-face.
@@ -136,6 +185,7 @@ impl DeviceCapabilities {
             screensaver_effects: orbit.screensaver_effects.clone(),
             transitions: None,
             clock_faces: None,
+            pictures: None,
             widgets: Some(self.widgets),
         })
     }

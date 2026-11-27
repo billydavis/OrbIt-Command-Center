@@ -121,6 +121,24 @@ export const makapixParamsSchema = z.object({
 });
 export type MakapixParams = z.infer<typeof makapixParamsSchema>;
 
+// picture is Orbit Station's addition too: your own pictures, shown from the
+// board's picture store, each named by its hash (the first 16 hex digits of
+// its file's SHA-256). Offered only when capabilities.pictures is there.
+// Like makapix, its "transition" comes from the device's capabilities.
+export const PICTURE_MAX_COUNT = 24;
+export const PICTURE_HASH = /^[0-9a-f]{16}$/;
+export const PICTURE_ORDERS = ["list", "shuffle"] as const;
+export type PictureOrder = (typeof PICTURE_ORDERS)[number];
+
+export const pictureParamsSchema = z.object({
+  pictures: z.array(z.string().regex(PICTURE_HASH)).max(PICTURE_MAX_COUNT).default([]),
+  // Device clamps to 5-86400s, as makapix's changeSeconds is clamped.
+  seconds: z.coerce.number().int().positive().default(30),
+  order: z.enum(PICTURE_ORDERS).default("list"),
+  transition: z.string().optional(),
+});
+export type PictureParams = z.infer<typeof pictureParamsSchema>;
+
 // claudeUsage is Orbit Station's addition too. Only `style` and `animate` are
 // settings; the four readings are live, never typed in or chosen here: they
 // always follow CLAUDE_USAGE_FEEDS (bound on the Rust side, built_in in

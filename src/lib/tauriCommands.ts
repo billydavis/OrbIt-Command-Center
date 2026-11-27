@@ -9,6 +9,7 @@ import type {
   Feed,
   FeedServerStatus,
   OrbButton,
+  OrbPictures,
   PressLength,
   Profile,
   SavedClockFace,
@@ -93,6 +94,16 @@ export function deleteProfile(id: string): Promise<void> {
 /** Sends a clock face file to screen `n`, exactly as given (see lib/clockFaceRenderer.ts). */
 export function uploadClockFace(n: number, file: string): Promise<ClockFaceUploaded> {
   return invoke("upload_clock_face", { n, file });
+}
+
+/** What the orb's picture store holds, and the room left in it. */
+export function listOrbPictures(): Promise<OrbPictures> {
+  return invoke("list_orb_pictures");
+}
+
+/** Removes a picture from the orb; rejects with a 409 while a screen lists it. */
+export function deleteOrbPicture(hash: string): Promise<void> {
+  return invoke("delete_orb_picture", { hash });
 }
 
 export function listClockFaces(): Promise<SavedClockFace[]> {

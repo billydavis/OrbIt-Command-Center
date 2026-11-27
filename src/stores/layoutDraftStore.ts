@@ -30,6 +30,12 @@ function sanitizeSlot(slot: ScreenSlot): ScreenSlot {
     const { clockFaceHeld, ...params } = slot.params;
     return { ...slot, params, clockFaceHeld: typeof clockFaceHeld === "string" ? clockFaceHeld : null };
   }
+  // picture reports `picturesMissing` the same way: not a setting either.
+  if (slot.control === "picture" && "picturesMissing" in slot.params) {
+    const { picturesMissing, ...params } = slot.params;
+    const missing = Array.isArray(picturesMissing) ? picturesMissing.filter((h) => typeof h === "string") : [];
+    return { ...slot, params, picturesMissing: missing };
+  }
   if (slot.control === "asteroids") {
     return { ...slot, control: "screensaver", params: { effect: "asteroids" } };
   }

@@ -22,6 +22,13 @@ export interface ScreenSlot {
    * showing its built-in clock face instead (see lib/clockFaceSync.ts).
    */
   clockFaceHeld?: string | null;
+  /**
+   * picture only: the pictures in `params.pictures` the orb doesn't hold
+   * (a new or wiped board, or not uploaded yet); it skips them until they
+   * arrive. Reported as a param, moved here by layoutDraftStore like
+   * `clockFaceHeld`.
+   */
+  picturesMissing?: string[];
 }
 
 export interface ScreenSlotInput {
@@ -75,6 +82,11 @@ export interface Capabilities {
    */
   clockFaces: ClockFacesCapability | null;
   /**
+   * The picture store the picture control shows from (PUT /pictures/{hash}).
+   * Null on firmware without it: don't offer the picture control then.
+   */
+  pictures: PicturesCapability | null;
+  /**
    * Every widget in the firmware, in the order Left and Right step through
    * them. Null on firmware that only reports OrbIt's controls.
    */
@@ -85,6 +97,29 @@ export interface ClockFacesCapability {
   fileVersion: number;
   /** The names the `clockFace` param takes, e.g. "classic". */
   builtIn: string[];
+}
+
+/**
+ * What a picture file has to be. The orb never scales or crops, so the app
+ * makes each one exactly `width` x `height`.
+ */
+export interface PicturesCapability {
+  maxBytes: number;
+  width: number;
+  height: number;
+  /** "jpeg", "png", "gif", "webp". */
+  formats: string[];
+}
+
+/** GET /orbit/api/v1/pictures: what the orb's picture store holds. */
+export interface OrbPictures {
+  /** `inUse`: a screen lists it, so the orb won't remove or delete it. */
+  pictures: { hash: string; bytes: number; inUse: boolean }[];
+  /** All the pictures together. */
+  bytes: number;
+  /** The most the next upload can be, counting what unused pictures would give up. */
+  roomBytes: number;
+  maxBytes: number;
 }
 
 /** The orb's answer to a clock face upload. */

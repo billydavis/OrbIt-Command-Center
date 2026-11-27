@@ -6,8 +6,8 @@ use super::error::OrbitError;
 use super::model::{
     BulkScreenSlotInput, BulkScreensRequest, ButtonPressed, Capabilities, ClockFaceUploaded,
     CountdownAction,
-    DeviceCapabilities, DeviceErrorBody, OrbButton, PressLength, ScreenSlot, ScreenSlotInput,
-    ScreensResponse, SystemInfo,
+    DeviceCapabilities, DeviceErrorBody, OrbButton, OrbPictures, PictureStored, PressLength, ScreenSlot,
+    ScreenSlotInput, ScreensResponse, SystemInfo,
 };
 
 // LAN-only device: a wrong/unreachable IP should fail fast in the UI rather
@@ -20,6 +20,9 @@ const REQUEST_TIMEOUT: Duration = Duration::from_secs(10);
 // A clock face file is up to 256 KB, and the board decodes its PNG to check
 // it before it answers.
 const CLOCK_FACE_TIMEOUT: Duration = Duration::from_secs(30);
+// A picture is up to 1 MB, written to flash as it arrives at ~40-50 KB/s:
+// ~25 s at worst, then the board checks it before it answers.
+const PICTURE_TIMEOUT: Duration = Duration::from_secs(60);
 
 /// Thin wrapper around the orbit-api REST surface (docs/orbit-api.md).
 /// One method per endpoint; no retry/backoff here — callers (Tauri commands,
@@ -172,6 +175,36 @@ impl OrbitClient {
         self.send_json(request).await
     }
 
+    /// What the board's picture store holds, and the room left in it.
+    pub async fn list_pictures(&self) -> Result<OrbPictures, OrbitError> {
+        let url = format!("{}/pictures", self.base_url);
+        self.send_json(self.http.get(url)).await
+    }
+
+    /// Stores a picture file (docs/orbit-api.md, "The picture store"). The
+    /// body is the file itself with its `Content-Length`; `hash` must be
+    /// the first 16 hex digits of its SHA-256, or the board refuses it.
+    /// Slow (the board writes its flash as the file arrives and answers
+    /// nothing else meanwhile), so send only what it lacks, one at a time.
+    pub async fn put_picture(&self, hash: &str, file: Vec<u8>) -> Result<PictureStored, OrbitError> {
+        let url = format!("{}/pictures/{hash}", self.base_url);
+        let request = self
+            .http
+            .put(url)
+            .timeout(PICTURE_TIMEOUT)
+            .header(reqwest::header::CONTENT_TYPE, "application/octet-stream")
+            .body(file);
+        self.send_json(request).await
+    }
+
+    /// Removes a picture from the board: 404 if it doesn't hold it, 409 if
+    /// a screen lists it.
+    pub async fn delete_picture(&self, hash: &str) -> Result<(), OrbitError> {
+        let url = format!("{}/pictures/{hash}", self.base_url);
+        let _: serde_json::Value = self.send_json(self.http.delete(url)).await?;
+        Ok(())
+    }
+
     /// `countdown`'s params shape differs from every other control (an
     /// action verb, not full state) — worth a named wrapper rather than
     /// making callers build a raw `ScreenSlotInput` by hand.
@@ -205,17 +238,23 @@ impl OrbitClient {
             .map_err(OrbitError::from_reqwest)?;
 
         if !status.is_success() {
-            let message = serde_json::from_slice::<DeviceErrorBody>(&bytes)
-                .map(|b| b.error)
-                .unwrap_or_else(|_| String::from_utf8_lossy(&bytes).to_string());
-            return Err(OrbitError::DeviceRejected {
-                status: status.as_u16(),
-                message,
-            });
+            return Err(Self::rejected(status, &bytes));
         }
 
         serde_json::from_slice(&bytes)
             .map_err(|e| OrbitError::Decode(format!("{e} (body: {})", String::from_utf8_lossy(&bytes))))
+    }
+
+    /// The device's `{ "error": "..." }` body as an error, or the body as
+    /// text when it isn't that.
+    fn rejected(status: reqwest::StatusCode, bytes: &[u8]) -> OrbitError {
+        let message = serde_json::from_slice::<DeviceErrorBody>(bytes)
+            .map(|b| b.error)
+            .unwrap_or_else(|_| String::from_utf8_lossy(bytes).to_string());
+        OrbitError::DeviceRejected {
+            status: status.as_u16(),
+            message,
+        }
     }
 }
 
@@ -299,6 +338,112 @@ mod tests {
 
         assert_eq!(uploaded.clock_face_hash, "9e98832c511416d0");
         assert!(uploaded.shown);
+    }
+
+    #[tokio::test]
+    async fn get_capabilities_reads_pictures() {
+        let server = MockServer::start().await;
+        let body = r#"{
+          "controls": ["picture"],
+          "pictures": {"maxBytes": 1048576, "width": 240, "height": 240, "formats": ["jpeg", "png", "gif", "webp"]}
+        }"#;
+        Mock::given(method("GET"))
+            .and(path("/orbit/api/v1/capabilities"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(body, "application/json"))
+            .mount(&server)
+            .await;
+
+        let client = OrbitClient::with_base_url(format!("{}/orbit/api/v1", server.uri()));
+        let capabilities = client.get_capabilities().await.expect("request should succeed");
+
+        let pictures = capabilities.pictures.expect("pictures should be read");
+        assert_eq!(pictures.max_bytes, 1_048_576);
+        assert_eq!((pictures.width, pictures.height), (240, 240));
+        assert_eq!(pictures.formats, vec!["jpeg", "png", "gif", "webp"]);
+    }
+
+    #[tokio::test]
+    async fn put_picture_sends_the_raw_file_and_reads_the_answer() {
+        let server = MockServer::start().await;
+        let file = vec![0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10];
+        Mock::given(method("PUT"))
+            .and(path("/orbit/api/v1/pictures/3761362fe84b9dea"))
+            .and(wiremock::matchers::body_bytes(file.clone()))
+            .and(wiremock::matchers::header("content-type", "application/octet-stream"))
+            .and(wiremock::matchers::header("content-length", "6"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(
+                r#"{"hash": "3761362fe84b9dea", "bytes": 5744, "format": "jpeg", "stored": true}"#,
+                "application/json",
+            ))
+            .mount(&server)
+            .await;
+
+        let client = OrbitClient::with_base_url(format!("{}/orbit/api/v1", server.uri()));
+        let stored = client.put_picture("3761362fe84b9dea", file).await.expect("request should succeed");
+
+        assert_eq!(stored.hash, "3761362fe84b9dea");
+        assert_eq!(stored.format, "jpeg");
+        assert!(stored.stored);
+    }
+
+    #[tokio::test]
+    async fn put_picture_surfaces_no_room_as_507() {
+        let server = MockServer::start().await;
+        Mock::given(method("PUT"))
+            .and(path("/orbit/api/v1/pictures/3761362fe84b9dea"))
+            .respond_with(ResponseTemplate::new(507).set_body_raw(
+                r#"{"error": "not enough room for the picture"}"#,
+                "application/json",
+            ))
+            .mount(&server)
+            .await;
+
+        let client = OrbitClient::with_base_url(format!("{}/orbit/api/v1", server.uri()));
+        let err = client.put_picture("3761362fe84b9dea", vec![1, 2, 3]).await.expect_err("should fail");
+
+        match err {
+            OrbitError::DeviceRejected { status, message } => {
+                assert_eq!(status, 507);
+                assert_eq!(message, "not enough room for the picture");
+            }
+            other => panic!("expected DeviceRejected, got {other:?}"),
+        }
+    }
+
+    #[tokio::test]
+    async fn list_pictures_parses_the_documented_response_shape() {
+        let server = MockServer::start().await;
+        let body = r#"{"pictures": [{"hash": "3761362fe84b9dea", "bytes": 5744, "inUse": true}], "bytes": 5744, "roomBytes": 3315763, "maxBytes": 1048576}"#;
+        Mock::given(method("GET"))
+            .and(path("/orbit/api/v1/pictures"))
+            .respond_with(ResponseTemplate::new(200).set_body_raw(body, "application/json"))
+            .mount(&server)
+            .await;
+
+        let client = OrbitClient::with_base_url(format!("{}/orbit/api/v1", server.uri()));
+        let store = client.list_pictures().await.expect("request should succeed");
+
+        assert_eq!(store.pictures.len(), 1);
+        assert!(store.pictures[0].in_use);
+        assert_eq!(store.room_bytes, 3_315_763);
+        assert_eq!(store.max_bytes, 1_048_576);
+    }
+
+    #[tokio::test]
+    async fn delete_picture_surfaces_in_use_as_409() {
+        let server = MockServer::start().await;
+        Mock::given(method("DELETE"))
+            .and(path("/orbit/api/v1/pictures/3761362fe84b9dea"))
+            .respond_with(ResponseTemplate::new(409).set_body_raw(
+                r#"{"error": "a screen lists this picture"}"#,
+                "application/json",
+            ))
+            .mount(&server)
+            .await;
+
+        let client = OrbitClient::with_base_url(format!("{}/orbit/api/v1", server.uri()));
+        let err = client.delete_picture("3761362fe84b9dea").await.expect_err("should fail");
+        assert!(matches!(err, OrbitError::DeviceRejected { status: 409, .. }));
     }
 
     #[tokio::test]

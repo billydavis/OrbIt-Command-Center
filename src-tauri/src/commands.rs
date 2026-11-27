@@ -3,8 +3,8 @@ use std::sync::atomic::Ordering;
 use tauri::{AppHandle, State};
 
 use crate::device::{
-    BulkScreenSlotInput, ButtonPressed, Capabilities, ClockFaceUploaded, CountdownAction, OrbButton, OrbitClient,
-    OrbitError, PressLength, ScreenSlot, ScreenSlotInput, SystemInfo,
+    BulkScreenSlotInput, ButtonPressed, Capabilities, ClockFaceUploaded, CountdownAction, OrbButton, OrbPictures,
+    OrbitClient, OrbitError, PressLength, ScreenSlot, ScreenSlotInput, SystemInfo,
 };
 use crate::discovery::{self, DiscoveredDevice};
 use crate::feeds::bindings::{self, ScreenBinding};
@@ -71,6 +71,7 @@ pub async fn get_capabilities(
                     if let Ok(orbit) = client.get_capabilities().await {
                         capabilities.transitions = orbit.transitions;
                         capabilities.clock_faces = orbit.clock_faces;
+                        capabilities.pictures = orbit.pictures;
                         if orbit.screensaver_effects.is_some() {
                             capabilities.screensaver_effects = orbit.screensaver_effects;
                         }
@@ -222,6 +223,20 @@ pub async fn upload_clock_face(
 ) -> Result<ClockFaceUploaded, OrbitError> {
     let _writing = state.device_writes.lock().await;
     with_device(&state, |client| async move { client.put_clock_face(n, file).await }).await
+}
+
+/// What the orb's picture store holds and the room left in it.
+#[tauri::command]
+pub async fn list_orb_pictures(state: State<'_, AppState>) -> Result<OrbPictures, OrbitError> {
+    with_device(&state, |client| async move { client.list_pictures().await }).await
+}
+
+/// Removes a picture from the orb (409 while a screen lists it). A write to
+/// its flash, so it shares `device_writes` with the layout writes.
+#[tauri::command]
+pub async fn delete_orb_picture(hash: String, state: State<'_, AppState>) -> Result<(), OrbitError> {
+    let _writing = state.device_writes.lock().await;
+    with_device(&state, |client| async move { client.delete_picture(&hash).await }).await
 }
 
 #[tauri::command]
