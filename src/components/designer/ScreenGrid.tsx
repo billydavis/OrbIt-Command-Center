@@ -2,6 +2,7 @@ import { SCREEN_COUNT } from "../../lib/types";
 import { useLayoutDraftStore } from "../../stores/layoutDraftStore";
 import { ScreenTile } from "./ScreenTile";
 import { clockFaceMissing } from "../../lib/clockFaceSync";
+import { picturesMissing } from "../../lib/pictureSync";
 
 interface ScreenGridProps {
   selected: number | null;
@@ -22,7 +23,7 @@ export function ScreenGrid({ selected, onSelect }: ScreenGridProps) {
           slot={draft[i] ? { screen: i, updatedAt: 0, ...draft[i] } : undefined}
           keeping={draft[i]?.control === "blank" ? live[i]?.savedControl : undefined}
           selected={selected === i}
-          dirty={isDirty(i) || clockFaceMissing(live[i], draft[i])}
+          dirty={isDirty(i) || clockFaceMissing(live[i], draft[i]) || picturesMissing(live[i], draft[i])}
           onSelect={onSelect}
         />
       ))}

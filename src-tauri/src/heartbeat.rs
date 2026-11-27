@@ -76,6 +76,13 @@ async fn probe(app: &AppHandle, tracker: &mut Tracker) {
     if tracker.device.as_deref() != Some(client.base_url()) {
         *tracker = Tracker { device: Some(client.base_url().to_string()), ..Tracker::default() };
     }
+    // A write is holding the orb: it answers nothing else until that ends,
+    // and a picture upload can take ~20 s (several back to back, longer).
+    // A probe now would only time out and count towards "lost", so skip
+    // this one. Writes have their own timeouts, so the lock always ends.
+    if state.device_writes.try_lock().is_err() {
+        return;
+    }
 
     let mut just_found_unsupported = false;
     let result = if tracker.system_unsupported {

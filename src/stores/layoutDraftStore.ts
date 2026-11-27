@@ -115,8 +115,10 @@ interface LayoutDraftState {
    * Updates one screen's live (and draft) state from a single-screen
    * response — refresh_ticker and countdown_action both return just that
    * screen's slot, not the full 5-slot array syncFromDevice expects.
+   * `keepDraft` leaves the draft as it is: edits made while the write that
+   * answered was in flight (an Apply sending pictures can take a while).
    */
-  patchLive: (slot: ScreenSlot) => void;
+  patchLive: (slot: ScreenSlot, keepDraft?: boolean) => void;
 
   isDirty: (screen: number) => boolean;
 
@@ -185,11 +187,11 @@ export const useLayoutDraftStore = create<LayoutDraftState>((set, get) => ({
     set((state) => ({ draft: { ...state.draft, ...draft }, draftRevision }));
   },
 
-  patchLive: (rawSlot) => {
+  patchLive: (rawSlot, keepDraft = false) => {
     const slot = sanitizeSlot(rawSlot);
     set((state) => ({
       live: { ...state.live, [slot.screen]: slot },
-      draft: { ...state.draft, [slot.screen]: toInput(slot) },
+      draft: keepDraft && state.draft[slot.screen] ? state.draft : { ...state.draft, [slot.screen]: toInput(slot) },
     }));
   },
 

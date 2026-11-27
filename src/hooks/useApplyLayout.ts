@@ -2,10 +2,11 @@ import { useEffect, useState } from "react";
 import { applyLayout } from "../lib/tauriCommands";
 import { isNotBuiltError, listOf } from "../lib/capabilities";
 import { clockFaceMissing, sendClockFaces } from "../lib/clockFaceSync";
+import { picturesMissing, sendPictures, unavailableWarning } from "../lib/pictureSync";
 import { COLORS_UNSUPPORTED_MESSAGE, colorsNotApplied } from "../lib/rgb565";
 import { describeOrbitError, type BulkScreenSlotInput } from "../lib/types";
 import { isCurrentConnection, useDeviceStore } from "../stores/deviceStore";
-import { useLayoutDraftStore } from "../stores/layoutDraftStore";
+import { stableStringify, useLayoutDraftStore } from "../stores/layoutDraftStore";
 
 const APPLY_SUCCESS_AUTO_DISMISS_MS = 3_000;
 
@@ -43,8 +44,8 @@ export function useApplyLayout() {
     // countdown is excluded from bulk apply — it's action-driven and always
     // applied directly (see ScreenEditor/CountdownForm) — and only dirty
     // screens are sent, since bulk POST replaces exactly what's given. So
-    // is a screen whose clock face the orb doesn't hold (reflashed, say),
-    // even with nothing else changed.
+    // is a screen whose clock face or pictures the orb doesn't hold
+    // (reflashed, say), even with nothing else changed.
     const toApply: BulkScreenSlotInput[] = Object.entries(draft)
       .map(([screenStr, input]) => ({ screen: Number(screenStr), ...input }))
       .filter((s) => s.control !== "countdown" && needsApply(s.screen));
@@ -60,9 +61,24 @@ export function useApplyLayout() {
     try {
       const sent = await sendClockFaces(toApply, live);
       if (!isCurrentConnection(generation)) return;
+      const pictures = await sendPictures(sent.slots);
+      if (!isCurrentConnection(generation)) return;
       const applied = await applyLayout(sent.slots);
       if (!isCurrentConnection(generation)) return;
-      applied.forEach(patchLive);
+      // A screen edited while this was in flight (sending pictures can take
+      // a while) keeps its new edits, left unapplied, rather than being
+      // reset to what was sent.
+      const current = useLayoutDraftStore.getState().draft;
+      for (const slot of applied) {
+        const asSent = toApply.find((s) => s.screen === slot.screen);
+        const now = current[slot.screen];
+        const editedSince =
+          asSent !== undefined &&
+          now !== undefined &&
+          stableStringify({ control: now.control, params: now.params }) !==
+            stableStringify({ control: asSent.control, params: asSent.params });
+        patchLive(slot, editedSince);
+      }
       const colorsIgnored = applied.some((slot) => {
         const sent = toApply.find((s) => s.screen === slot.screen);
         return sent !== undefined && colorsNotApplied(sent, slot);
@@ -76,7 +92,7 @@ export function useApplyLayout() {
                 title: "A clock face wasn't sent",
                 detail: `The clock face for screen${sent.unavailable.length === 1 ? "" : "s"} ${screens} isn't saved in this app, so the orb shows its built-in clock face there. Pick a clock face to send one.`,
               }
-            : null,
+            : unavailableWarning(pictures.unavailable),
       );
       setSuccessMessage(`Applied ${applied.length} screen${applied.length === 1 ? "" : "s"} to device`);
     } catch (err) {
@@ -96,7 +112,9 @@ export function useApplyLayout() {
   }
 
   function needsApply(screen: number) {
-    return isDirty(screen) || clockFaceMissing(live[screen], draft[screen]);
+    return (
+      isDirty(screen) || clockFaceMissing(live[screen], draft[screen]) || picturesMissing(live[screen], draft[screen])
+    );
   }
 
   const dirtyCount = connected
